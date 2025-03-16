@@ -36,17 +36,16 @@ FORCE=false
 # TODO: Review this when done
 function usage() {
   cat <<EOF
-Password Manager
+Pass: Password Manager
 Usage: $0 [option] [command]
 Available options:
 -f, --force                                - Lifts confirmation dialogs
--k, --key [key]                            - Allows to use a different key
 -s, --store [pass/otp/rcv]                 - Choose a store
 -h, --help                                 - Displays this message and exits
 Available commands:
-copy [name] -k [key]                       - Copy password to clipboard
-edit [name] -k [key]                       - Edit an existing password
-new, generate [name] [length] -k [key]     - Generate a new password
+copy [name]                                - Copy password to clipboard
+edit [name]                                - Edit an existing password
+new, generate [name] [length]              - Generate a new password
 rm, remove [name] -s                       - Remove password from store
 setup                                      - Setup keys, directories and git
 EOF
@@ -242,77 +241,10 @@ function copy_password() {
 
 config_file # Read config file
 
-# while [[ "$1" != "" ]]; do
-#   case "$1" in
-#   -h | --usage | usage)
-#     usage
-#     exit 0
-#     ;;
-#   setup)
-#     setup
-#     exit 0
-#     ;;
-#   init)
-#     init
-#     exit 0
-#     ;;
-#   -k | --key)
-#     shift
-#     key=$1
-#     ;;
-#   -f | --force)
-#     shift
-#     FORCE=true
-#     ;;
-#   new | generate)
-#     shift
-#     name=$1
-#     length=${2:72}
-#     set_store
-#     generate_password
-#     exit 0
-#     ;;
-#   edit)
-#     shift
-#     name=$1
-#     key=$2
-#     set_store
-#     edit_password
-#     exit 0
-#     ;;
-#   copy)
-#     shift
-#     name=$1
-#     key=$2
-#     set_store
-#     copy_password
-#     exit 0
-#     ;;
-#   list)
-#     shift
-#     list_passwords
-#     exit 0
-#     ;;
-#   -s | --store)
-#     shift
-#     store=$1
-#     shift
-#     ;;
-#   rm | remove)
-#     shift
-#     name=$1
-#     set_store
-#     remove_password
-#     exit 0
-#     ;;
-#   esac
-# done
-
 while getopts ":hfk:s:" opt; do
   case "$opt" in
   h) usage ;;
   f) FORCE=true ;;
-  k) key="$OPTARG" ;;
   s) store="$OPTARG" ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
@@ -369,6 +301,3 @@ rm | remove)
   exit 0
   ;;
 esac
-
-# **Configuration File:** Consider adding support for a configuration file (e.g., `~/.passrc`) to allow users to customize the script's behavior.
-# **Password Expiration:** Consider adding options to track password expiration dates and prompt the user to change them when they expire.
