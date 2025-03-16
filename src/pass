@@ -94,7 +94,13 @@ function setup() {
   age --encrypt --recipient="$key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
   error_check
   age --encrypt --passphrase -o "$MAIN_KEY" "$KEY_STORE/temp_main"
-  error_check
+  val=$?
+  if [ "$val" -ne 0 ]; then
+    echo "An error occurred!" >&2
+    shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+    exit 1
+  fi
+
   shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
 
   text "$BLUE" "Two keys have been created: main.age and pass.age"
@@ -150,7 +156,7 @@ function generate_password() {
   key=$(get_age_pub_key)
 
   cd "$STORE" || exit 1
-  mkdir -p "$name"
+  mkdir -p "$(dirname "$name")"
 
   pwgen "$length" -Bsncy1n | age --encrypt --recipient="$key" --output="$STORE/$name.age"
   error_check
@@ -164,15 +170,15 @@ function set_store() {
   fi
   case "$store" in
   pass)
-    STORE=$PASSWORD_STORE/$name
+    STORE=$PASSWORD_STORE
     message="password"
     ;;
   otp)
-    STORE=$OTP_STORE/$name
+    STORE=$OTP_STORE
     message="otp"
     ;;
   rcv)
-    STORE=$RCV_STORE/$name
+    STORE=$RCV_STORE
     message="recovery key"
     ;;
   esac
