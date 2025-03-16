@@ -27,6 +27,7 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 - [ ] Re-encrypt all passwords with new age key
 - [ ] Add a rofi script for managing passwords
 - [ ] Import passwords from passwordstore
+- [ ] Create a .passrc
 - [ ] Use different age keys (someday)
 
 ## License
