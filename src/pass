@@ -1,36 +1,20 @@
 #!/usr/bin/env bash
 
-## Main Directory
-
+PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
-
-## Password Directories
-
-OTP_STORE=${OTP_STORE:-"$PASS_STORE/otp/"}
 PASSWORD_STORE=${PASSWORD_STORE:-"$PASS_STORE/passwords/"}
-RCV_STORE=${RCV_STORE:-"$PASS_STORE/rcv/"}
-
-## Age Key Directory
 
 KEY_STORE=${KEY_STORE:-"$PASS_STORE/keys/"}
-
-## Age Keys
 
 MAIN_KEY=${MAIN_KEY:-"$KEY_STORE/main.age"}
 PASS_KEY=${PASS_KEY:-"$KEY_STORE/pass.age"}
 
-## Temporary Directory to store main.age
-
 TMP_MAIN_KEY=/run/user/"$(id -u)"/mainkey.tmp
 TMP_PASS_KEY=/run/user/"$(id -u)"/passkey.tmp
-
-## Echo Coloring
 
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
-
-## Enable confirmation by default
 
 FORCE=false
 
@@ -41,7 +25,6 @@ Pass: Password Manager
 Usage: $0 [option] [command]
 Available options:
 -f, --force                                - Lifts confirmation dialogs
--s, --store [pass/otp/rcv]                 - Choose a store
 -h, --help                                 - Displays this message and exits
 Available commands:
 copy [name]                                - Copy password to clipboard
@@ -52,7 +35,6 @@ setup                                      - Setup keys, directories and git
 EOF
 }
 
-# Echo Coloring
 function text() {
   local color text reset
   color=$1
@@ -67,16 +49,6 @@ function error_check() {
     echo "An error occurred!" >&2
     exit 1
   }
-}
-
-function secure_error_check() {
-  val=$?
-  if [[ $val -ne 0 ]]; then
-    mv "$tmp_file" "$STORE"/"$name".age
-    shred -u "$TMP_PASS_KEY" "$PWD/pass.tmp"
-    echo "An error occurred!" >&2
-    return 1
-  fi
 }
 
 # TODO: Renew age keys
@@ -130,17 +102,18 @@ function setup() {
 # Decrypt main.age to get age pubkey
 function get_age_pub_key() {
   local private
-  private=$1
+  private=$1 # expects 'true'
   if [ ! -f "$TMP_MAIN_KEY" ]; then
     touch "$TMP_MAIN_KEY"
     chmod 600 "$TMP_MAIN_KEY"
-
-    age --decrypt "$MAIN_KEY" >"$TMP_MAIN_KEY"
+    age --decrypt "$MAIN_KEY" >"$TMP_MAIN_KEY" # use main.age and create a tmp file
     error_check
   fi
+  # use main.age tmp file privatekey to get pass.age public key
   pubkey=$(age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" | awk -F 'key: ' '{print $2}' | tr -d '\n')
   error_check
   if [ "$private" = "true" ]; then
+    # use main.age tmp file and create a pass.age tmp file (shorter lived than main.age tmp file)
     age --decrypt --identity="$TMP_MAIN_KEY" -o "$TMP_PASS_KEY" "$PASS_KEY"
   fi
   error_check
@@ -166,41 +139,20 @@ function generate_password() {
     echo "This password already exists!"
     exit 1
   fi
-  get_age_pub_key
+  get_age_pub_key # get pubkey
 
-  cd "$STORE" || exit 1
+  cd "$PASSWORD_STORE" || exit 1
   mkdir -p "$(dirname "$name")"
 
-  pwgen "$length" -Bsncy1n | age --encrypt --recipient="$pubkey" --output="$STORE/$name.age"
+  pwgen "$length" -Bsncy1n | age --encrypt --recipient="$pubkey" --output="$PASSWORD_STORE/$name.age" # create passwords from pass.age pubkey
   error_check
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
-}
-
-# Indicate which store should be worked on
-function set_store() {
-  if [ -z "$store" ]; then
-    store="pass"
-  fi
-  case "$store" in
-  pass)
-    STORE=$PASSWORD_STORE
-    message="password"
-    ;;
-  otp)
-    STORE=$OTP_STORE
-    message="otp"
-    ;;
-  rcv)
-    STORE=$RCV_STORE
-    message="recovery key"
-    ;;
-  esac
 }
 
 # Remove password from store
 function remove_password() {
   if [ "$FORCE" = "true" ]; then
-    shred -u "$STORE".age
+    shred -u "$PASSWORD_STORE".age
     echo "Remove $name $message from store"
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
@@ -210,7 +162,7 @@ function remove_password() {
       no) exit 0 ;;
       esac
     done
-    shred -u "$STORE".age
+    shred -u "$PASSWORD_STORE".age
     echo "Remove $name $message from store"
   fi
   error_check
@@ -219,33 +171,38 @@ function remove_password() {
 
 # Edit password
 function edit_password() {
-  local tmp_file="$STORE/$name.tmp"
+  local tmp_file="$PASSWORD_STORE/$name.tmp"
   local decrypted_file="$(mktemp)"
 
-  get_age_pub_key true
+  get_age_pub_key true # get pubkey and create pass.age tmp file
 
   if [ -f "$tmp_file" ]; then
-    mv "$tmp_file" "$STORE/$name.age"
+    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
   fi
 
-  mv "$STORE/$name.age" "$tmp_file"
+  mv "$PASSWORD_STORE/$name.age" "$tmp_file" # safeguard original password
+  # use pass.age tmp file to decrypt password to modify it later
   age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
-    mv "$tmp_file" "$STORE/$name.age"
+    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
     shred -u "$TMP_PASS_KEY" "$decrypted_file"
+    echo "An error occurred!" >&2
     return 1
   }
 
   nano "$decrypted_file"
 
-  age --encrypt --recipient="$pubkey" -o "$STORE/$name.age" "$decrypted_file" || {
-    mv "$tmp_file" "$STORE/$name.age"
+  # use pass.age pubkey to create our new password
+  age --encrypt --recipient="$pubkey" -o "$PASSWORD_STORE/$name.age" "$decrypted_file" || {
+    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
     rm -f "$decrypted_file"
+    echo "An error occurred!" >&2
     return 1
   }
 
+  # clear all tmp files
   shred -u "$TMP_PASS_KEY" "$tmp_file" "$decrypted_file"
 
-  git -C "$PASS_STORE" add "$STORE/$name.age" &&
+  git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
     git -C "$PASS_STORE" commit -m "Edit $name"
 }
 
@@ -259,41 +216,46 @@ function clear_clipboard() {
   extra_clear
 }
 
-function extra_clear() {
+function extra_clipboard_clear() {
   # Extra command to be executed after clipboard is cleared
   # Example: PASS_CLEAR="cliphist wipe"
-  pass_clear=$(sed -n 's/clear: //p' <"$PASSRC")
+  pass_clear=$(sed -n 's/CLEAR=//p' <"$PASSRC")
   if [ -n "$pass_clear" ]; then
     "$(pass_clear)"
   fi
 }
 
-function config_file() {
-  PASSRC=${PASSRC:-"$HOME/.passrc"}
-}
-
 # Copy password to clipboard
 function copy_password() {
-  clipmethod="$XDG_SESSION_TYPE"
-  get_age_pub_key
+  local password_file="$PASSWORD_STORE/$name.age"
+  local decrypted_file="$(mktemp)"
+  local clipmethod="$XDG_SESSION_TYPE"
+
+  get_age_pub_key true # get pubkey and create pass.age tmp file
+
   if [ "$clipmethod" = "x11" ]; then
-    age --decrypt --identity="$pubkey" "$STORE"/"$name".age | xclip -sel clip
+    age --decrypt --identity="$TMP_PASS_KEY" "$password_file" | xclip -sel clip
   elif [ "$clipmethod" = "wayland" ]; then
-    age --decrypt --identity="$pubkey" "$STORE"/"$name".age | wl-copy
+    age --decrypt --identity="$TMP_PASS_KEY" "$password_file" | wl-copy
   fi
-  error_check
+  val=$?
+  if [ "$val" -ne 0 ]; then
+    shred -u "$TMP_PASS_KEY"
+    echo "An error occurred!" >&2
+    return 1
+  fi
+  shred -u "$TMP_PASS_KEY"
+
+  # clear all tmp files
   echo "Clearing the password from clipboard in 5 seconds..."
   sleep 5s
   clear_clipboard
 }
 
-config_file # Read config file
-
 while getopts ":hfk:s:" opt; do
   case "$opt" in
   h) usage ;;
   f) FORCE=true ;;
-  s) store="$OPTARG" ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
     usage
@@ -317,23 +279,18 @@ new | generate)
   shift
   name="$1"
   length=${2:-72}
-  set_store
   generate_password
   exit 0
   ;;
 edit)
   shift
   name=$1
-  key=$2
-  set_store
   edit_password
   exit 0
   ;;
 copy)
   shift
   name=$1
-  key=$2
-  set_store
   copy_password
   exit 0
   ;;
@@ -344,7 +301,6 @@ list)
 rm | remove)
   shift
   name=$1
-  set_store
   remove_password
   exit 0
   ;;
