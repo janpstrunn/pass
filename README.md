@@ -1,6 +1,8 @@
-<h1 align="center">Pass</h1>
+[<img src="https://git.disroot.org/janpstrunn/images/raw/branch/main/pass.png" align="right" height="110"/>][github-link]
 
-> [WARN]
+# Pass
+
+> [!WARN]
 > This project is still not ready for production
 
 `pass` is a simple password manager written in shell that tries to replace the [passwordstore](https://www.passwordstore.org/) keeping its core philosophies.
