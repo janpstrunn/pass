@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
 PASSWORD_STORE=${PASSWORD_STORE:-"$PASS_STORE/passwords/"}
 
@@ -30,7 +29,7 @@ Available commands:
 copy [name]                                - Copy password to clipboard
 edit [name]                                - Edit an existing password
 new, generate [name] [length]              - Generate a new password
-rm, remove [name] -s                       - Remove password from store
+rm, remove [name] -f                       - Remove password from store
 setup                                      - Setup keys, directories and git
 EOF
 }
@@ -213,15 +212,9 @@ function clear_clipboard() {
   elif [ "$clipmethod" = "wayland" ]; then
     echo "" | wl-copy
   fi
-  extra_clear
-}
-
-function extra_clipboard_clear() {
-  # Extra command to be executed after clipboard is cleared
-  # Example: PASS_CLEAR="cliphist wipe"
-  pass_clear=$(sed -n 's/CLEAR=//p' <"$PASSRC")
-  if [ -n "$pass_clear" ]; then
-    "$(pass_clear)"
+  if command -v cliphist &>/dev/null; then
+    cliphist wipe
+    exit 1
   fi
 }
 
