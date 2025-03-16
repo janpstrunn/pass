@@ -26,6 +26,11 @@ function error_check() {
 }
 
 function init() {
+  #TODO: re-encrypt all passwords with new age key
+  echo "WIP"
+}
+
+function setup() {
   echo "Setting up"
   echo "1. Creating a dedicated directory for pass and its subdirectories"
   mkdir -p "$PASS_STORE" "$KEY_STORE" "$OTP_STORE" "$PASSWORD_STORE"
@@ -67,8 +72,20 @@ function generate_password() {
   fallback_main_key
   key=$(get_age_key "$key")
   stabilize-path "$name"
-  pwgen "$lengh" -Bsncy1n | age --recipient="$key" --output="$PASSWORD_STORE"/"$name".age
+  pwgen "$lengh" -Bsncy1n | age --encrypt --recipient="$key" --output="$PASSWORD_STORE"/"$name".age
   error_check
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
+}
+
+function edit_password() {
+  EDITOR=${EDITOR:-vim}
+  fallback_main_key
+  key=$(get_age_key "$key")
+  new_password=$(age --decrypt --identity="$key" "$PASSWORD_STORE"/"$name".age | $EDITOR)
+  age --encrypt --recipient="$key" "$new_password" >"$PASSWORD_STORE"/"$name".age
+  stabilize-path "$name"
+  error_check
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
 }
 
 function clear_clipboard() {
@@ -88,11 +105,10 @@ function copy_password() {
   clipmethod="$XDG_SESSION_TYPE"
   fallback_main_key
   key=$(get_age_key "$key")
-  stabilize-path "$name"
   if [ "$clipmethod" = "x11" ]; then
-    age --identity="$key" "$PASSWORD_STORE"/"$name".age | xclip -sel clip
+    age --decrypt --identity="$key" "$PASSWORD_STORE"/"$name".age | xclip -sel clip
   elif [ "$clipmethod" = "wayland" ]; then
-    age --identity="$key" "$PASSWORD_STORE"/"$name".age | wl-copy
+    age --decrypt --identity="$key" "$PASSWORD_STORE"/"$name".age | wl-copy
   fi
   error_check
   echo "Clearing the password from clipboard in 5 seconds..."
@@ -106,6 +122,10 @@ while [[ "$1" != "" ]]; do
     help
     exit 0
     ;;
+  -s | --setup)
+    setup
+    exit 0
+    ;;
   -i | --init)
     init
     exit 0
@@ -116,6 +136,13 @@ while [[ "$1" != "" ]]; do
     lengh=$2
     key=$3
     generate_password
+    exit 0
+    ;;
+  -e | --edit)
+    shift
+    name=$1
+    key=$2
+    edit_password
     exit 0
     ;;
   -c | --copy)
