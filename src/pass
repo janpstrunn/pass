@@ -21,7 +21,8 @@ PASS_KEY=${PASS_KEY:-"$KEY_STORE/pass.age"}
 
 ## Temporary Directory to store main.age
 
-TMP_KEY=/run/user/"$(id -u)"/passkey.tmp
+TMP_MAIN_KEY=/run/user/"$(id -u)"/mainkey.tmp
+TMP_PASS_KEY=/run/user/"$(id -u)"/passkey.tmp
 
 ## Echo Coloring
 
@@ -66,6 +67,16 @@ function error_check() {
     echo "An error occurred!" >&2
     exit 1
   }
+}
+
+function secure_error_check() {
+  val=$?
+  if [[ $val -ne 0 ]]; then
+    mv "$tmp_file" "$STORE"/"$name".age
+    shred -u "$TMP_PASS_KEY" "$PWD/pass.tmp"
+    echo "An error occurred!" >&2
+    return 1
+  fi
 }
 
 # TODO: Renew age keys
@@ -118,19 +129,21 @@ function setup() {
 
 # Decrypt main.age to get age pubkey
 function get_age_pub_key() {
-  if [ ! -f "$TMP_KEY" ]; then
-    touch "$TMP_KEY"
-    chmod 600 "$TMP_KEY"
+  local private
+  private=$1
+  if [ ! -f "$TMP_MAIN_KEY" ]; then
+    touch "$TMP_MAIN_KEY"
+    chmod 600 "$TMP_MAIN_KEY"
 
-    age --decrypt "$MAIN_KEY" >"$TMP_KEY"
+    age --decrypt "$MAIN_KEY" >"$TMP_MAIN_KEY"
     error_check
-
-    pubkey=$(age --decrypt --identity="$TMP_KEY" "$PASS_KEY" | awk -F 'key: ' '{print $2}' | tr -d '\n')
-  else
-    pubkey=$(awk -F 'key: ' '{print $2}' <"$TMP_KEY" | tr -d '\n')
+  fi
+  pubkey=$(age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" | awk -F 'key: ' '{print $2}' | tr -d '\n')
+  error_check
+  if [ "$private" = "true" ]; then
+    age --decrypt --identity="$TMP_MAIN_KEY" -o "$TMP_PASS_KEY" "$PASS_KEY"
   fi
   error_check
-  echo "$pubkey"
 }
 
 # List directories using eza or tree
@@ -153,12 +166,12 @@ function generate_password() {
     echo "This password already exists!"
     exit 1
   fi
-  key=$(get_age_pub_key)
+  get_age_pub_key
 
   cd "$STORE" || exit 1
   mkdir -p "$(dirname "$name")"
 
-  pwgen "$length" -Bsncy1n | age --encrypt --recipient="$key" --output="$STORE/$name.age"
+  pwgen "$length" -Bsncy1n | age --encrypt --recipient="$pubkey" --output="$STORE/$name.age"
   error_check
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
 }
@@ -206,12 +219,34 @@ function remove_password() {
 
 # Edit password
 function edit_password() {
-  key=$(get_age_pub_key)
-  new_password=$(age --decrypt --identity="$key" "$STORE"/"$name".age | nano)
-  error_check
-  age --encrypt --recipient="$key" "$new_password" >"$STORE"/"$name".age
-  error_check
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Edit $name $message"
+  local tmp_file="$STORE/$name.tmp"
+  local decrypted_file="$(mktemp)"
+
+  get_age_pub_key true
+
+  if [ -f "$tmp_file" ]; then
+    mv "$tmp_file" "$STORE/$name.age"
+  fi
+
+  mv "$STORE/$name.age" "$tmp_file"
+  age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
+    mv "$tmp_file" "$STORE/$name.age"
+    shred -u "$TMP_PASS_KEY" "$decrypted_file"
+    return 1
+  }
+
+  nano "$decrypted_file"
+
+  age --encrypt --recipient="$pubkey" -o "$STORE/$name.age" "$decrypted_file" || {
+    mv "$tmp_file" "$STORE/$name.age"
+    rm -f "$decrypted_file"
+    return 1
+  }
+
+  shred -u "$TMP_PASS_KEY" "$tmp_file" "$decrypted_file"
+
+  git -C "$PASS_STORE" add "$STORE/$name.age" &&
+    git -C "$PASS_STORE" commit -m "Edit $name"
 }
 
 # Clears clipboard
@@ -240,11 +275,11 @@ function config_file() {
 # Copy password to clipboard
 function copy_password() {
   clipmethod="$XDG_SESSION_TYPE"
-  key=$(get_age_pub_key)
+  get_age_pub_key
   if [ "$clipmethod" = "x11" ]; then
-    age --decrypt --identity="$key" "$STORE"/"$name".age | xclip -sel clip
+    age --decrypt --identity="$pubkey" "$STORE"/"$name".age | xclip -sel clip
   elif [ "$clipmethod" = "wayland" ]; then
-    age --decrypt --identity="$key" "$STORE"/"$name".age | wl-copy
+    age --decrypt --identity="$pubkey" "$STORE"/"$name".age | wl-copy
   fi
   error_check
   echo "Clearing the password from clipboard in 5 seconds..."
