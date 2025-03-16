@@ -60,16 +60,25 @@ function setup() {
   text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
   mkdir -p "$PASS_STORE" "$KEY_STORE" "$OTP_STORE" "$PASSWORD_STORE"
   error_check
+
   text "$GREEN" "2. Creating an exclusive GPG key to use pass"
   gpg --full-generate-key
   error_check
+
   text "$GREEN" "3. Creating your main age key"
   # text "$GREEN" "Please enter your GPG email you just created: "
   # read -r -p ">> " email
-  age-keygen | gpg --encrypt -a --recipient "$email" >"$KEY_STORE"/main.asc
+  age-keygen -o "$KEY_STORE"/main.age
+  key=$MAIN_KEY_STORE
+  key=$(get_age_pub_key "$key")
+  age-keygen | age --encrypt --recipient="$key" --output="$KEY_STORE"/pass.age
+  age-keygen | age --encrypt --recipient="$key" --output="$KEY_STORE"/otp.age
+  age-keygen | age --encrypt --recipient="$key" --output="$KEY_STORE"/rcv.age
   error_check
+
   text "$GREEN" "4. Creating your git repository"
-  git init
+  git -C "$PASS_STORE" init
+
   text "$GREEN" "Setup Complete"
   #TODO: make pass usage introduction
 }
