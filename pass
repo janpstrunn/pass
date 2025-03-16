@@ -1,0 +1,280 @@
+#!/usr/bin/env bash
+
+# Environment Variables are preferable
+PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
+OTP_STORE=${OTP_STORE:-"$PASS_STORE/otp/"}
+PASSWORD_STORE=${PASSWORD_STORE:-"$PASS_STORE/passwords/"}
+
+KEY_STORE=${KEY_STORE:-"$PASS_STORE/keys/"}
+MAIN_KEY_STORE=${MAIN_KEY_STORE:-"$PASS_STORE/keys/main.asc"}
+
+RED="$(tput setaf 196)"
+GREEN="$(tput setaf 82)"
+BLUE="$(tput setaf 87)"
+ORANGE="$(tput setaf 166)"
+
+FORCE=false
+
+function help() {
+  cat <<EOF
+Password Manager
+Usage: $0 [option]
+Available options:
+copy [name] -k [key]                       - Copy password to clipboard
+edit [name] -k [key]                       - Edit an existing password
+help, -h, --help                           - Displays this message and exits
+new, generate [name] [lengh] -k [key]      - Generate a new password
+rm, remove [name] -s                       - Remove password from store
+setup [email]                              - Setup keys, directories and git
+-k, --key [key]                            - Allows to use a different key
+-f, --force                                - Lifts confirmation dialogs
+-s, --store [pass/otp/rcv/all]             - Choose a store
+EOF
+}
+
+# Echo Coloring
+function text() {
+  local color=$1
+  local text=$2
+  local reset=$(tput sgr0)
+  echo -e "${color}${text}${reset}"
+}
+
+function error_check() {
+  error=$?
+  [[ "$error" -ne 0 ]] && {
+    echo "An error occurred!"
+    exit 1
+  }
+}
+
+# Renew age keys
+function init() {
+  #TODO: re-encrypt all passwords with new age key
+  echo "WIP"
+}
+
+# Setup directories, gpg and age keys, and git repository
+function setup() {
+  text "$GREEN" "Setting up"
+  text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
+  mkdir -p "$PASS_STORE" "$KEY_STORE" "$OTP_STORE" "$PASSWORD_STORE"
+  error_check
+  text "$GREEN" "2. Creating an exclusive GPG key to use pass"
+  gpg --full-generate-key
+  error_check
+  text "$GREEN" "3. Creating your main age key"
+  # text "$GREEN" "Please enter your GPG email you just created: "
+  # read -r -p ">> " email
+  age-keygen | gpg --encrypt -a --recipient "$email" >"$KEY_STORE"/main.asc
+  error_check
+  text "$GREEN" "4. Creating your git repository"
+  git init
+  text "$GREEN" "Setup Complete"
+  #TODO: make pass usage introduction
+}
+
+# Fallback key to default if not set
+function fallback_main_key() {
+  if [ -z "$key" ]; then
+    key=$MAIN_KEY_STORE
+  else
+    key="$KEY_STORE/$key"
+  fi
+}
+
+# Creates directories
+function stabilize_path() {
+  local path
+  path=$(dirname "$1")
+  mkdir -p "$path"
+  error_check
+}
+
+# Decrypt main.asc to get age pubkey
+function get_age_pub_key() {
+  local key
+  key=$1
+  pubkey=$(gpg --decrypt "$key" 2>/dev/null | awk -F 'key: ' '{print $2}' | tr -d '\n')
+  error_check
+  echo "$pubkey"
+}
+
+# List directories using eza or tree
+function list_passwords() {
+  if command -v eza &>/dev/null; then
+    eza -T "$PASS_STORE"
+  else
+    tree "$PASS_STORE"
+  fi
+}
+
+# Generate passwords, with optional lengh choice
+function generate_password() {
+  fallback_main_key
+  key=$(get_age_pub_key "$key")
+  stabilize_path "$name"
+  pwgen "$lengh" -Bsncy1n | age --encrypt --recipient="$key" --output="$STORE"/"$name".age
+  error_check
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
+}
+
+# Indicate which store should be worked on
+function set_store() {
+  if [ -z "$store" ]; then
+    store="pass"
+  fi
+  case "$store" in
+  pass)
+    STORE=$PASSWORD_STORE/$name
+    remove_message="password"
+    ;;
+  otp)
+    STORE=$OTP_STORE/$name
+    remove_message="otp"
+    ;;
+  rcv)
+    STORE=$RECOVERY_STORE/$name
+    remove_message="recovery key"
+    ;;
+  all)
+    STORE=$PASSWORD_STORE/$name
+    STORE+=$OTP_STORE/$name
+    STORE+=$RECOVERY_STORE/$name
+    remove_message="all keys"
+    ;;
+  esac
+}
+
+# Remove password from store
+function remove_password() {
+  if [ "$FORCE" = "true" ]; then
+    rm -f "$STORE".age
+  else
+    text "$RED" "Are you sure you want to remove $name? (y/N)"
+    select choice_continue in "yes" "no"; do
+      case $choice_continue in
+      yes) break ;;
+      no) exit 0 ;;
+      esac
+    done
+    rm -f "$STORE".age
+  fi
+  error_check
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Remove $name $remove_message from store"
+}
+
+# Edit password
+function edit_password() {
+  EDITOR=${EDITOR:-vim}
+  fallback_main_key
+  key=$(get_age_pub_key "$key")
+  new_password=$(age --decrypt --identity="$key" "$STORE"/"$name".age | $EDITOR)
+  age --encrypt --recipient="$key" "$new_password" >"$STORE"/"$name".age
+  error_check
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
+}
+
+# Clears clipboard
+function clear_clipboard() {
+  if [ "$clipmethod" = "x11" ]; then
+    echo "" | xclip -sel clip
+  elif [ "$clipmethod" = "wayland" ]; then
+    echo "" | wl-copy
+  fi
+  # Extra command to be executed after clipboard is cleared
+  # Example: PASS_CLEAR="cliphist wipe"
+  if [ -n "$PASS_CLEAR" ]; then
+    eval "$(PASS_CLEAR)"
+  fi
+}
+
+# Copy password to clipboard
+function copy_password() {
+  clipmethod="$XDG_SESSION_TYPE"
+  fallback_main_key
+  key=$(get_age_pub_key "$key")
+  if [ "$clipmethod" = "x11" ]; then
+    age --decrypt --identity="$key" "$STORE"/"$name".age | xclip -sel clip
+  elif [ "$clipmethod" = "wayland" ]; then
+    age --decrypt --identity="$key" "$STORE"/"$name".age | wl-copy
+  fi
+  error_check
+  echo "Clearing the password from clipboard in 5 seconds..."
+  sleep 5s
+  clear_clipboard
+}
+
+# No argument will list passwords
+if [ "$#" -eq 0 ]; then
+  list_passwords
+  exit 0
+fi
+
+while [[ "$1" != "" ]]; do
+  case "$1" in
+  -h | --help | help)
+    help
+    exit 0
+    ;;
+  setup)
+    shift
+    email=$1
+    setup
+    exit 0
+    ;;
+  init)
+    init
+    exit 0
+    ;;
+  -k | --key)
+    shift
+    key=$1
+    ;;
+  -f | --force)
+    shift
+    FORCE=true
+    ;;
+  new | generate)
+    shift
+    name=$1
+    lengh=${2:72}
+    set_store
+    generate_password
+    exit 0
+    ;;
+  edit)
+    shift
+    name=$1
+    key=$2
+    set_store
+    edit_password
+    exit 0
+    ;;
+  copy)
+    shift
+    name=$1
+    key=$2
+    set_store
+    copy_password
+    exit 0
+    ;;
+  list)
+    shift
+    list_passwords
+    exit 0
+    ;;
+  -s | --store)
+    shift
+    store=$1
+    shift
+    ;;
+  rm | remove)
+    shift
+    name=$1
+    set_store
+    remove_password
+    exit 0
+    ;;
+  esac
+done
