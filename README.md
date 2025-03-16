@@ -1,6 +1,7 @@
-[<img src="https://git.disroot.org/janpstrunn/images/raw/branch/main/pass.png" align="right" height="110"/>]
+<img src="https://git.disroot.org/janpstrunn/images/raw/branch/main/pass.png" align="right" height="110"/>
+<br>
 
-# Pass
+<h1 align="left">Pass</h1>
 
 > [!WARNING]
 > This project is still not ready for production
