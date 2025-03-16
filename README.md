@@ -11,7 +11,6 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 
 ## Requirements
 
-- `gpg` (currently required)
 - `age`
 - `git`
 - shell (`bash`, `zsh`, `fish`)
