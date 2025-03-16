@@ -88,13 +88,14 @@ function setup() {
   error_check
 
   text "$GREEN" "2. Creating your main and pass age keys"
-  age-keygen -o "$PASS_KEY" # Key used for passwords
-  age-keygen -o "$MAIN_KEY" # encryption layer for pass_key
-  key=$(awk -F 'key: ' '{print $2}' <"$MAIN_KEY" | tr -d '\n')
-  age --encrypt --recipient="$key" -a "$PASS_KEY" >"$PASS_KEY"
+  age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
+  age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
+  key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
+  age --encrypt --recipient="$key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
   error_check
-  age --encrypt --passphrase "$MAIN_KEY" >"$MAIN_KEY"
+  age --encrypt --passphrase -o "$MAIN_KEY" "$KEY_STORE/temp_main"
   error_check
+  shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
 
   text "$BLUE" "Two keys have been created: main.age and pass.age"
   text "$BLUE" "You will need both to access your accounts. And both are encrypted by default."
@@ -148,12 +149,8 @@ function generate_password() {
   fi
   key=$(get_age_pub_key)
 
-  STORE=$(echo "$STORE" | sed 's/\/$//')
-  name=$(echo "$name" | sed 's/\/\//\//g')
-
-  if [[ "$name" =~ / ]]; then
-    mkdir -p "$(dirname "$name")"
-  fi
+  cd "$STORE" || exit 1
+  mkdir -p "$name"
 
   pwgen "$length" -Bsncy1n | age --encrypt --recipient="$key" --output="$STORE/$name.age"
   error_check
@@ -277,7 +274,7 @@ init)
   ;;
 new | generate)
   shift
-  name="$STORE/$1"
+  name="$1"
   length=${2:-72}
   set_store
   generate_password
