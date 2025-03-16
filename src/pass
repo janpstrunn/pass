@@ -88,13 +88,23 @@ function setup() {
   error_check
 
   text "$GREEN" "2. Creating your main and pass age keys"
-  age-keygen -o "$PASS_KEY"                             # Key used for passwords
-  age --encrypt --passphrase -o "$MAIN_KEY" "$PASS_KEY" # Encryption layer for PASS_KEY
+  age-keygen -o "$PASS_KEY" # Key used for passwords
+  age-keygen -o "$MAIN_KEY" # encryption layer for pass_key
+  key=$(awk -F 'key: ' '{print $2}' <"$MAIN_KEY" | tr -d '\n')
+  age --encrypt --recipient="$key" -a "$PASS_KEY" >"$PASS_KEY"
   error_check
-  text "$BLUE" "Do not forget your password. If you forget it you will loose access to all your passwords"
+  age --encrypt --passphrase "$MAIN_KEY" >"$MAIN_KEY"
+  error_check
+
+  text "$BLUE" "Two keys have been created: main.age and pass.age"
+  text "$BLUE" "You will need both to access your accounts. And both are encrypted by default."
+  text "$BLUE" "main.age is required to decrypt pass.age, and pass.age is required to decrypt all your passwords"
+  text "$BLUE" "You can decrypt main.age with the password you just set"
+  text "$RED" "Do not forget your password. If you forget it you will loose access to all your passwords"
 
   text "$GREEN" "3. Creating your git repository"
   git -C "$PASS_STORE" init
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Initial commit"
 
   text "$GREEN" "Setup Complete"
 }
