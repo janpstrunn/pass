@@ -32,9 +32,10 @@ Available options:
 -f, --force                                - Lifts confirmation dialogs
 Available commands:
 cp, copy [name]                            - Copy password to clipboard
-edit [name]                                - Edit an existing password
-reset                                      - Re-encrypts all passwords
-find                                       - Find files
+edit [name]                                - Edit an existing password using nano
+reset                                      - Re-encrypts all passwords with new key and master password
+git [git-args]                             - Run any git coomand at PASS_STORE
+find                                       - Find files and output as tree format
 ls, list                                   - List all passwords in a tree format
 new, generate [name] [length] -f           - Generate a new password
 rm, remove [name] -f                       - Remove password from store
@@ -193,15 +194,20 @@ function list_passwords() {
 
 function find_passwords() {
   if [ -d "$PASS_STORE" ]; then
+    cd "$PASS_STORE" || exit 1
     if command -v fd &>/dev/null; then
-      fd -t f -i "$name" "$PASS_STORE"
+      fd -t f -i "$name" . | tree --fromfile
     else
-      find "$PASS_STORE" -type f -iname "*$name*"
+      find . -type f -iname "*$name*" | tree --fromfile
     fi
   else
     echo "No password store found!"
     echo "Run setup first!"
   fi
+}
+
+function git_passwords() {
+  git -C "$PASS_STORE" "$@"
 }
 
 # Generate passwords, with optional length choice
@@ -377,6 +383,12 @@ rm | remove)
   shift
   name=$1
   remove_password
+  exit 0
+  ;;
+git)
+  shift
+  args=$*
+  git_passwords "$args"
   exit 0
   ;;
 find)
