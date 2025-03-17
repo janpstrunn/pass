@@ -69,13 +69,27 @@ function error_check() {
 }
 
 function reset() {
-  # Backup files
-  cp -r "$PASS_STORE" "$HOME/.pass.bak"
-  init_decrypt # Decrypt all passwords
-  init_encrypt # Re-encrypt all passwords with new keys and password
+  text "$RED" "Are you sure you want to reset your age keys?"
+  if [ "$FORCE" = "true" ]; then
+    # Backup files
+    cp -r "$PASS_STORE" "$HOME/.pass.bak"
+    reset_decrypt # Decrypt all passwords
+    reset_encrypt # Re-encrypt all passwords with new keys and password
+  else
+    select choice_continue in "yes" "no"; do
+      case $choice_continue in
+      yes) break ;;
+      no) exit 0 ;;
+      esac
+    done
+    # Backup files
+    cp -r "$PASS_STORE" "$HOME/.pass.bak"
+    reset_decrypt # Decrypt all passwords
+    reset_encrypt # Re-encrypt all passwords with new keys and password
+  fi
 }
 
-function init_decrypt() {
+function reset_decrypt() {
   local MAIN_DECRYPTED PASS_DECRYPTED
   MAIN_DECRYPTED="$KEY_STORE/main-decrypted.age"
   PASS_DECRYPTED="$KEY_STORE/pass-decrypted.age"
@@ -104,7 +118,7 @@ function init_decrypt() {
   srm "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
 }
 
-function init_encrypt() {
+function reset_encrypt() {
   local key pubkey
   age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
   age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
@@ -446,7 +460,7 @@ clip)
   exit 0
   ;;
 reset)
-  init
+  reset
   exit 0
   ;;
 new | generate)
