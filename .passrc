@@ -1,0 +1,7 @@
+# This a .passrc template
+# This file is not required to use pass
+
+# Default Values
+FORCE=false                 # true, to always lift confirmation dialogs
+CLIPHIST_WIPE=false         # true, if cliphist is installed it wipes the database
+CLIPBOARD_CLEAR_TIME=5      # number in seconds, sets the time to clear the clipboard after copy
