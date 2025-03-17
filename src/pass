@@ -229,13 +229,20 @@ function list_passwords() {
   fi
 }
 
+function output_password() {
+  get_age_pub_key true # get pubkey and create pass.age tmp file
+  # use pass.age tmp file to decrypt password to output it
+  age --decrypt --identity="$TMP_PASS_KEY" "$PASSWORD_STORE/$name.age"
+  unset TMP_PASS_KEY
+}
+
 function fzf_passwords() {
   if ! command -v fzf &>/dev/null; then
     echo "fzf could not be found. Please install it."
     exit 1
   fi
-  if [ -d "$PASS_STORE" ]; then
-    cd "$PASS_STORE" || exit 1
+  if [ -d "$PASSWORD_STORE" ]; then
+    cd "$PASSWORD_STORE" || exit 1
     if command -v fzf &>/dev/null; then
       name=$(fzf --prompt "Select a password")
       name=$(basename "$name" | awk -F. '{print $1}')
@@ -414,7 +421,7 @@ function copy_password() {
   clear_clipboard
 }
 
-while getopts ":hfc" opt; do
+while getopts ":hfco" opt; do
   case "$opt" in
   h)
     usage
@@ -423,6 +430,15 @@ while getopts ":hfc" opt; do
   f) FORCE=true ;;
   c)
     CLIP_POST_ACTION=true
+    ;;
+  o)
+    shift
+    name="$1"
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    output_password
+    exit 0
     ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
