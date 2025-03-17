@@ -209,7 +209,7 @@ function setup() {
   val=$?
   if [ "$val" -ne 0 ]; then
     echo "An error occurred!" >&2
-    srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+    srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY" "$PASS_PUBKEY"
     exit 1
   fi
   srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
@@ -218,7 +218,7 @@ function setup() {
   text "$BLUE" "You will need both to access your accounts. And both are encrypted by default."
   text "$BLUE" "main.age is required to decrypt pass.age, and pass.age is required to decrypt all your passwords"
   text "$BLUE" "You can decrypt main.age with the password you just set"
-  text "$RED" "Do not forget your password. If you forget it you will loose access to all your passwords"
+  text "$RED" "Do not forget your password. If you forget it you will lose access to all your passwords"
   echo
   text "$GREEN" "3. Creating your git repository"
   git -C "$PASS_STORE" init
