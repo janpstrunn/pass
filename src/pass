@@ -33,17 +33,17 @@ Usage: $0 [option] [command]
 Available options:
 -h, --help, usage                           - Displays this message and exists
 -f, --force                                 - Lifts confirmation dialogs
--c                                          - Copy password to clipboard after generate or edit
+-c, --clip                                  - Copy password to clipboard after generate or edit
 Available commands:
+clip [pass-name]                            - Copy password to clipboard
 edit [pass-name]                            - Edit an existing password using nano
-reset                                       - Re-encrypts all passwords with new key and master password
-git [git-args]                              - Run any git coomand at PASS_STORE
 find                                        - Find files and output as tree format
+git [git-args]                              - Run any git coomand at PASS_STORE
 ls, list                                    - List all passwords in a tree format
 new, generate [pass-name] [length] -f       - Generate a new password
+reset                                       - Re-encrypts all passwords with new key and master password
 rm, remove [pass-name] -f                   - Remove password from store
 setup                                       - Setup keys, directories and git
-clip [pass-name]                            - Copy password to clipboard
 EOF
 }
 
@@ -373,6 +373,14 @@ case "$1" in
 setup)
   setup
   exit 0
+  ;;
+--clip)
+  shift
+  CLIP_POST_ACTION=true
+  ;;
+--force)
+  shift
+  FORCE=true
   ;;
 clip)
   shift
