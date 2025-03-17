@@ -39,12 +39,13 @@ Available options:
 Available commands:
 clip [pass-name]                            - Copy password to clipboard
 edit [pass-name]                            - Edit an existing password using nano
-find                                        - Find files and output as tree format
+find [pass-name]                            - Find files and output as tree format
 git [git-args]                              - Run any git coomand at PASS_STORE
+import                                      - Import passwords from passwordstore
 ls, list                                    - List all passwords in a tree format
-new, generate [pass-name] [length] -f       - Generate a new password
-reset                                       - Re-encrypts all passwords with new key and master password
-rm, remove [pass-name] -f                   - Remove password from store
+new, generate -f -c [pass-name] [length]    - Generate a new password
+reset -f                                    - Re-encrypts all passwords with new key and master password
+rm, remove -f [pass-name]                   - Remove password from store
 setup                                       - Setup keys, directories and git
 version                                     - Displays the current version number
 EOF
