@@ -284,9 +284,13 @@ function clear_clipboard() {
   elif [ "$clipmethod" = "wayland" ]; then
     echo "" | wl-copy
   fi
-  if command -v cliphist &>/dev/null; then
-    cliphist wipe
-    exit 1
+  if [ "$CLIPHIST_WIPE" == "true" ]; then
+    if command -v cliphist &>/dev/null; then
+      cliphist wipe
+      exit 1
+    else
+      echo "Cliphist is not installed"
+    fi
   fi
 }
 
