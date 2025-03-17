@@ -18,13 +18,19 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 - `git`
 - shell (`bash`, `zsh`, `fish`)
 
+## Configuration
+
+Environment Variables:
+
+- PASS_STORE: Default to "$HOME/.pass/"
+
 ## Development Progress
 
 - [x] Add support for `git`
 - [ ] Add pass-top for OTP passwords (oathtool)
 - [ ] Add pass-rcv for recovery keys
 - [ ] Add integration with tomb to obfuscate directory and filenames
-- [ ] Re-encrypt all passwords with new age key
+- [x] Re-encrypt all passwords with new age key
 - [ ] Add a rofi script for managing passwords
 - [ ] Import passwords from passwordstore
 - [ ] Create a .passrc

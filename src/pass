@@ -17,7 +17,6 @@ BLUE="$(tput setaf 87)"
 
 FORCE=false
 
-# TODO: Review this when done
 function usage() {
   cat <<EOF
 Pass: Password Manager
@@ -50,9 +49,53 @@ function error_check() {
   }
 }
 
-# TODO: Renew age keys
 function init() {
-  echo "WIP"
+  # Backup files
+  cp -r "$PASS_STORE" "$HOME/.pass.bak"
+  init_decrypt # Decrypt all passwords
+  init_encrypt # Re-encrypt all passwords with new keys and password
+}
+
+function init_decrypt() {
+  local MAIN_DECRYPTED PASS_DECRYPTED
+  MAIN_DECRYPTED="$KEY_STORE/main-decrypted.age"
+  PASS_DECRYPTED="$KEY_STORE/pass-decrypted.age"
+  age --decrypt -o "$MAIN_DECRYPTED" "$MAIN_KEY"
+  error_check
+  age --decrypt --identity="$MAIN_DECRYPTED" -o "$PASS_DECRYPTED" "$PASS_KEY"
+  error_check
+  if [ -d "$PASSWORD_STORE" ]; then
+    find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 -I {} sh -c "
+        DECRYPTED_PASSWORD=\"\${1%.age}.txt\"
+        age --decrypt --identity=\"$PASS_DECRYPTED\" \"\$1\" > \"\$DECRYPTED_PASSWORD\"
+      " _ {}
+  fi
+  error_check
+  find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 shred -u
+  shred -u "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
+}
+
+function init_encrypt() {
+  age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
+  age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
+  key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
+  age --encrypt --recipient="$key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
+  error_check
+  age --encrypt --passphrase -o "$MAIN_KEY" "$KEY_STORE/temp_main"
+  val=$?
+  if [ "$val" -ne 0 ]; then
+    echo "An error occurred!" >&2
+    shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+    exit 1
+  fi
+  local pubkey=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n')
+  find "$PASSWORD_STORE" -name "*.txt" -print0 | xargs -0 -I {} sh -c "
+      ENCRYPTED_PASSWORD=\"\${1%.txt}.age\"
+      age --encrypt --recipient=\"$pubkey\" \"\$1\" > \"\$ENCRYPTED_PASSWORD\"
+      rm -f \"\$1\"
+    " _ {}
+  shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
+  text "$GREEN" "All passwords have been re-encrypted with new keys!"
 }
 
 # Setup directories, gpg and age keys, and git repository
@@ -64,9 +107,12 @@ function setup() {
     echo "git could not be found. Please install it."
     exit 1
   fi
+  if [ -f "$TMP_MAIN_KEY" ]; then
+    shred -u "$TMP_MAIN_KEY"
+  fi
   text "$GREEN" "Setting up"
   text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
-  mkdir -p "$PASS_STORE" "$KEY_STORE" "$OTP_STORE" "$PASSWORD_STORE"
+  mkdir -p "$PASS_STORE" "$KEY_STORE" "$PASSWORD_STORE"
   error_check
 
   text "$GREEN" "2. Creating your main and pass age keys"
@@ -295,6 +341,10 @@ rm | remove)
   shift
   name=$1
   remove_password
+  exit 0
+  ;;
+*)
+  list_passwords
   exit 0
   ;;
 esac
