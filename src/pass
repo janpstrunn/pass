@@ -5,27 +5,21 @@
 PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
 
+if [[ "$PASS_STORE" != "$HOME"* ]]; then
+  echo "Danger! PASS_STORE is not located within the home directory!"
+  echo "PASS_STORE Location: $PASS_STORE"
+  echo "Exitting!"
+  exit 1
+fi
+
 # Global Variables
 
-PASSWORD_STORE=${PASSWORD_STORE:-"$PASS_STORE/passwords/"}
-KEY_STORE=${KEY_STORE:-"$PASS_STORE/keys/"}
-MAIN_KEY=${MAIN_KEY:-"$KEY_STORE/main.age"}
-PASS_KEY=${PASS_KEY:-"$KEY_STORE/pass.age"}
-TMP_MAIN_KEY=/run/user/"$(id -u)"/mainkey.tmp
-TMP_PASS_DIR=/run/user/"$(id -u)"
-RED="$(tput setaf 196)"
-GREEN="$(tput setaf 82)"
-BLUE="$(tput setaf 87)"
-
-# Read .passrc
-FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
-CLIPHIST_WIPE=$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")
-CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
-
-# Fallback values
-FORCE="${FORCE:-false}"
-CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
-CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
+PASSWORD_STORE="$PASS_STORE/passwords/"
+KEY_STORE="$PASS_STORE/keys/"
+MAIN_KEY="$KEY_STORE/main.age"
+PASS_KEY="$KEY_STORE/pass.age"
+TMP_DIR=/run/user/"$(id -u)"
+TMP_MAIN_KEY="$TMP_DIR"/tmp_main.600
 CLIP_POST_ACTION=false
 
 function usage() {
@@ -46,11 +40,19 @@ new, generate [pass-name] [length] -f       - Generate a new password
 reset                                       - Re-encrypts all passwords with new key and master password
 rm, remove [pass-name] -f                   - Remove password from store
 setup                                       - Setup keys, directories and git
+version                                     - Displays the current version number
 EOF
 }
 
+function version() {
+  echo "v.1.0.0-alpha"
+}
+
 function text() {
-  local color text reset
+  local color text reset RED GREEN BLUE
+  RED="$(tput setaf 196)"
+  GREEN="$(tput setaf 82)"
+  BLUE="$(tput setaf 87)"
   color=$1
   text=$2
   reset=$(tput sgr0)
@@ -88,14 +90,21 @@ function init_decrypt() {
         DECRYPTED_PASSWORD=\"\${1%.age}.txt\"
         age --decrypt --identity=\"$PASS_DECRYPTED\" \"\$1\" > \"\$DECRYPTED_PASSWORD\"
       " _ {}
+
+    find "$PASSWORD_STORE" -name "*.age" -print0 | while IFS= read -r -d $'\0' file; do
+      DECRYPTED_PASSWORD="${file%.age}.txt"
+      age --decrypt --identity="$PASS_DECRYPTED" "$file" >"$DECRYPTED_PASSWORD"
+      error_check "age --decrypt --identity '$PASS_DECRYPTED' '$file' > '$DECRYPTED_PASSWORD'"
+    done
   fi
   error_check
   # Wipe all .age passwords
-  find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 shred -u
-  shred -u "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
+  find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 srm
+  srm "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
 }
 
 function init_encrypt() {
+  local key pubkey
   age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
   age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
   key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
@@ -105,17 +114,17 @@ function init_encrypt() {
   val=$?
   if [ "$val" -ne 0 ]; then
     echo "An error occurred!" >&2
-    shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+    srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
     exit 1
   fi
-  local pubkey=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n')
+  pubkey=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n')
   # Encrypt all passwords
   find "$PASSWORD_STORE" -name "*.txt" -print0 | xargs -0 -I {} sh -c "
       ENCRYPTED_PASSWORD=\"\${1%.txt}.age\"
       age --encrypt --recipient=\"$pubkey\" \"\$1\" > \"\$ENCRYPTED_PASSWORD\"
       rm -f \"\$1\"
     " _ {}
-  shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
+  srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
   text "$GREEN" "All passwords have been re-encrypted with new keys!"
 }
 
@@ -127,9 +136,13 @@ function setup() {
   elif ! command -v git &>/dev/null; then
     echo "git could not be found. Please install it."
     exit 1
+  elif ! command -v secure-delete &>/dev/null; then
+    echo "secure-delete could not be found. Please install it."
+    exit 1
   fi
+
   if [ -f "$TMP_MAIN_KEY" ]; then
-    shred -u "$TMP_MAIN_KEY"
+    srm "$TMP_MAIN_KEY"
   fi
   text "$GREEN" "Setting up"
   text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
@@ -146,10 +159,10 @@ function setup() {
   val=$?
   if [ "$val" -ne 0 ]; then
     echo "An error occurred!" >&2
-    shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+    srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
     exit 1
   fi
-  shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
+  srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
   echo
   text "$BLUE" "Two keys have been created: main.age and pass.age"
   text "$BLUE" "You will need both to access your accounts. And both are encrypted by default."
@@ -179,7 +192,7 @@ function get_age_pub_key() {
   error_check
   if [ "$private" = "true" ]; then
     # use main.age tmp file and create a pass.age tmp file (shorter lived than main.age tmp file)
-    TMP_PASS_KEY=$(mktemp --tmpdir="$TMP_PASS_DIR" tmp_pass.XXXXXX)
+    TMP_PASS_KEY=$(mktemp --tmpdir="$TMP_DIR" tmp_pass.XXXXXX)
     age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" >"$TMP_PASS_KEY"
   fi
   error_check
@@ -219,10 +232,13 @@ function git_passwords() {
 
 # Generate passwords, with optional length choice
 function generate_password() {
+  local FORCE
+  FORCE="${FORCE:-false}"
+  FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
   if [ -f "$PASSWORD_STORE/$name" ]; then
     echo "This password already exists!"
     if [ "$FORCE" = "true" ]; then
-      shred -u "$PASSWORD_STORE"/"$name"/.age
+      srm "$PASSWORD_STORE"/"$name"/.age
       echo "Removed $name from store"
     else
       exit 1
@@ -245,8 +261,11 @@ function generate_password() {
 
 # Remove password from store
 function remove_password() {
+  local FORCE
+  FORCE="${FORCE:-false}"
+  FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
   if [ "$FORCE" = "true" ]; then
-    shred -u "$PASSWORD_STORE".age
+    srm "$PASSWORD_STORE"/"$name"/.age
     echo "Remove $name from store"
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
@@ -256,7 +275,7 @@ function remove_password() {
       no) exit 0 ;;
       esac
     done
-    shred -u "$PASSWORD_STORE".age
+    srm "$PASSWORD_STORE"/"$name"/.age
     echo "Remove $name from store"
   fi
   error_check
@@ -265,8 +284,9 @@ function remove_password() {
 
 # Edit password
 function edit_password() {
-  local tmp_file="$PASSWORD_STORE/$name.tmp"
-  local decrypted_file="$(mktemp)"
+  local tmp_file decrypted_file
+  tmp_file="$PASSWORD_STORE/$name.tmp"
+  decrypted_file="$(mktemp --tmpdir="$TMP_DIR" tmp_decpass.XXXXXX)"
 
   get_age_pub_key true # get pubkey and create pass.age tmp file
 
@@ -278,8 +298,7 @@ function edit_password() {
   # use pass.age tmp file to decrypt password to modify it later
   age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD_STORE/$name.age"
-    shred -u "$decrypted_file"
-    unset TMP_PASS_KEY
+    unset TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
   }
@@ -289,15 +308,13 @@ function edit_password() {
   # use pass.age pubkey to create our new password
   age --encrypt --recipient="$pubkey" -o "$PASSWORD_STORE/$name.age" "$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD_STORE/$name.age"
-    shred -u "$decrypted_file"
-    unset TMP_PASS_KEY
+    unset TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
   }
 
   # clear all tmp files
-  shred -u "$decrypted_file"
-  unset TMP_PASS_KEY
+  unset TMP_PASS_KEY "$decrypted_file"
 
   git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
     git -C "$PASS_STORE" commit -m "Edit $name"
@@ -309,6 +326,9 @@ function edit_password() {
 
 # Clears clipboard
 function clear_clipboard() {
+  local CLIPHIST_WIPE
+  CLIPHIST_WIPE=$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")
+  CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
   if [ "$clipmethod" = "x11" ]; then
     echo "" | xclip -sel clip
   elif [ "$clipmethod" = "wayland" ]; then
@@ -331,6 +351,9 @@ function copy_password() {
   fi
   local password_file="$PASSWORD_STORE/$name.age"
   local clipmethod="$XDG_SESSION_TYPE"
+  local CLIPBOARD_CLEAR_TIME
+  CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
+  CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
 
   get_age_pub_key true # get pubkey and create pass.age tmp file
 
@@ -432,6 +455,10 @@ find)
   shift
   name=$1
   find_passwords
+  exit 0
+  ;;
+--version | version)
+  version
   exit 0
   ;;
 esac
