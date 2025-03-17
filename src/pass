@@ -35,6 +35,7 @@ Available options:
 -c, --clip                                  - Copy password to clipboard after generate or edit
 -f, --force                                 - Lifts confirmation dialogs
 -h, --help, usage                           - Displays this message and exists
+-o                                          - Print password to stdout
 Available commands:
 clip [pass-name]                            - Copy password to clipboard
 edit [pass-name]                            - Edit an existing password using nano
