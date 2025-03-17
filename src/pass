@@ -69,6 +69,34 @@ function error_check() {
   }
 }
 
+function pass_import() {
+  PASSWORD_STORE_DIR=${PASSWORD_STORE_DIR:-$HOME/.password-store/}
+  if [ ! -d "$PASS_STORE" ]; then
+    echo "PASS_STORE not found!"
+    exit 1
+  fi
+  cd "$PASSWORD_STORE_DIR" || exit 1
+  find . -type f -name "*.gpg" | while IFS= read -r password_file; do
+    password_name=$(sed 's|^.\(.*\).gpg$|\1|' <<<"$password_file")
+    password_dir=$(sed 's|^./\(.*\)/[^/]*\.gpg$|\1/|' <<<"$password_file")
+    password=$(pass "$password_name")
+
+    if [ "$(awk -F '/' '{print $1}' <<<"$password_dir")" != "." ]; then
+      mkdir -p "$PASSWORD_STORE/$password_dir"
+    fi
+
+    echo "$password" | age --encrypt --recipient="$(cat "$PASS_PUBKEY")" -o "$PASSWORD_STORE/$password_name.age"
+    val=$?
+
+    if [ $val -ne 0 ]; then
+      echo "Error encrypting password: $password_name" >&2
+      continue
+    fi
+
+    echo "Password $password_name encrypted successfully!"
+  done
+}
+
 function reset() {
   text "$RED" "Are you sure you want to reset your age keys?"
   if [ "$FORCE" = "true" ]; then
@@ -524,6 +552,10 @@ find)
   ;;
 --version | version)
   version
+  exit 0
+  ;;
+import)
+  pass_import
   exit 0
   ;;
 esac
