@@ -31,7 +31,7 @@ edit [name]                                - Edit an existing password
 reset                                      - Re-encrypts all passwords
 find                                       - Find files
 ls, list                                   - List all passwords in a tree format
-new, generate [name] [length]              - Generate a new password
+new, generate [name] [length] -f           - Generate a new password
 rm, remove [name] -f                       - Remove password from store
 setup                                      - Setup keys, directories and git
 EOF
@@ -201,9 +201,14 @@ function find_passwords() {
 
 # Generate passwords, with optional length choice
 function generate_password() {
-  if [ -f "$name" ]; then
+  if [ -f "$PASSWORD_STORE/$name" ]; then
     echo "This password already exists!"
-    exit 1
+    if [ "$FORCE" = "true" ]; then
+      shred -u "$PASSWORD_STORE"/"$name"/.age
+      echo "Removed $name from store"
+    else
+      exit 1
+    fi
   fi
   get_age_pub_key # get pubkey
 
