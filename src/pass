@@ -16,7 +16,12 @@ TMP_PASS_KEY=/run/user/"$(id -u)"/passkey.tmp
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
-FORCE=false
+
+FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
+CLIPHIST_WIPE=$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")
+
+FORCE="${FORCE:-false}"
+CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
 
 function usage() {
   cat <<EOF
