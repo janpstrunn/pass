@@ -24,6 +24,7 @@ CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
 FORCE="${FORCE:-false}"
 CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
 CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
+CLIP_POST_ACTION=false
 
 function usage() {
   cat <<EOF
@@ -32,7 +33,7 @@ Usage: $0 [option] [command]
 Available options:
 -h, --help, usage                           - Displays this message and exists
 -f, --force                                 - Lifts confirmation dialogs
--c, --clip [pass-name]                      - Copy password to clipboard
+-c                                          - Copy password to clipboard after generate or edit
 Available commands:
 edit [pass-name]                            - Edit an existing password using nano
 reset                                       - Re-encrypts all passwords with new key and master password
@@ -42,6 +43,7 @@ ls, list                                    - List all passwords in a tree forma
 new, generate [pass-name] [length] -f       - Generate a new password
 rm, remove [pass-name] -f                   - Remove password from store
 setup                                       - Setup keys, directories and git
+clip [pass-name]                            - Copy password to clipboard
 EOF
 }
 
@@ -231,6 +233,11 @@ function generate_password() {
   pwgen "$length" -Bsncy1n | age --encrypt --recipient="$pubkey" --output="$PASSWORD_STORE/$name.age" # create passwords from pass.age pubkey
   error_check
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
+  if [ "$CLIP_POST_ACTION" = "true" ]; then
+    copy_password
+  else
+    echo "$CLIP_POST_ACTION"
+  fi
 }
 
 # Remove password from store
@@ -288,6 +295,10 @@ function edit_password() {
 
   git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
     git -C "$PASS_STORE" commit -m "Edit $name"
+
+  if [ "$CLIP_POST_ACTION" = "true" ]; then
+    copy_password
+  fi
 }
 
 # Clears clipboard
@@ -309,6 +320,9 @@ function clear_clipboard() {
 
 # Copy password to clipboard
 function copy_password() {
+  if [ -z "$name" ]; then
+    echo "No password name is given"
+  fi
   local password_file="$PASSWORD_STORE/$name.age"
   local clipmethod="$XDG_SESSION_TYPE"
 
@@ -332,7 +346,7 @@ function copy_password() {
   clear_clipboard
 }
 
-while getopts ":hfc:" opt; do
+while getopts ":hfc" opt; do
   case "$opt" in
   h)
     usage
@@ -340,10 +354,7 @@ while getopts ":hfc:" opt; do
     ;;
   f) FORCE=true ;;
   c)
-    shift
-    name=$1
-    copy_password
-    exit 0
+    CLIP_POST_ACTION=true
     ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
@@ -361,6 +372,12 @@ case "$1" in
   ;;
 setup)
   setup
+  exit 0
+  ;;
+clip)
+  shift
+  name=$1
+  copy_password
   exit 0
   ;;
 reset)
