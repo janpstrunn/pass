@@ -80,7 +80,7 @@ function pass_import() {
   find . -type f -name "*.gpg" | while IFS= read -r password_file; do
     password_name=$(sed 's|^.\(.*\).gpg$|\1|' <<<"$password_file")
     password_dir=$(sed 's|^./\(.*\)/[^/]*\.gpg$|\1/|' <<<"$password_file")
-    password=$(pass "$password_name")
+    password=$(pass "$password_name" | head -n 1)
 
     if [ "$(awk -F '/' '{print $1}' <<<"$password_dir")" != "." ]; then
       mkdir -p "$PASSWORD_STORE/$password_dir"
@@ -95,6 +95,8 @@ function pass_import() {
     fi
 
     echo "Password $password_name encrypted successfully!"
+    text "$RED" "Important note: Only the first line have been copied!"
+    text "$RED" "If there were multiline passwords, they are not copied."
   done
 }
 
