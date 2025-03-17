@@ -6,6 +6,14 @@
 
 - v1.1.0 Change password permission when importing, and commit changes
 
+### Fixed
+
+- v1.1.0 Leftovers not being wiped
+
+### Changed
+
+- v1.1.0 Improve overall help menu
+
 ## [1.1.0] 2025-03-17
 
 ### Added

@@ -63,24 +63,36 @@ Configuration File:
 
 ```
 Pass: Password Manager
-Usage: $0 [option] [command]
-Available options:
--c, --clip                                  - Copy password to clipboard after generate or edit
--f, --force                                 - Lifts confirmation dialogs
--h, --help, usage                           - Displays this message and exists
--o                                          - Print password to stdout
-Available commands:
-clip [pass-name]                            - Copy password to clipboard
-edit [pass-name]                            - Edit an existing password using nano
-find [pass-name]                            - Find files and output as tree format
-git [git-args]                              - Run any git coomand at PASS_STORE
-import                                      - Import passwords from passwordstore
-ls, list                                    - List all passwords in a tree format
-new, generate -f -c [pass-name] [length]    - Generate a new password
-reset -f                                    - Re-encrypts all passwords with new key and master password
-rm, remove -f [pass-name]                   - Remove password from store
-setup                                       - Setup keys, directories and git
-version                                     - Displays the current version number
+
+Usage: $0 [options] <command> [arguments]
+
+Options:
+  -c, --clip        Copy password to clipboard after generating or editing
+  -f, --force       Bypass confirmation dialogs
+  -h, --help        Display this help message and exit
+  -o                Print password to stdout
+
+Commands:
+  clip <pass-name>         Copy password to clipboard
+  edit <pass-name>         Edit an existing password using nano
+  find <pass-name>         Search passwords and display as a tree
+  git <git-args>           Run any Git command in PASS_STORE
+  import                   Import passwords from password store
+  ls, list                 List all stored passwords in a tree format
+  new, generate [-f -c] <pass-name> <length>
+                           Generate a new password
+  reset [-f]               Re-encrypt all passwords with a new key and master password
+  rm, remove [-f] <pass-name>
+                           Remove a password entry
+  setup                    Initialize keys, directories, and Git
+  version                  Display the current version number
+
+Examples:
+  $0 new -c MyAccount 20
+  $0 clip MyAccount
+  $0 list
+  $0 git status
+  $0 reset -f
 ```
 
 First time running `pass`, requires to run the `setup` command: `./pass setup`
