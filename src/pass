@@ -224,7 +224,7 @@ function generate_password() {
 function remove_password() {
   if [ "$FORCE" = "true" ]; then
     shred -u "$PASSWORD_STORE".age
-    echo "Remove $name $message from store"
+    echo "Remove $name from store"
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
     select choice_continue in "yes" "no"; do
@@ -234,10 +234,10 @@ function remove_password() {
       esac
     done
     shred -u "$PASSWORD_STORE".age
-    echo "Remove $name $message from store"
+    echo "Remove $name from store"
   fi
   error_check
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Remove $name $message from store"
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Remove $name from store"
 }
 
 # Edit password
@@ -265,13 +265,13 @@ function edit_password() {
   # use pass.age pubkey to create our new password
   age --encrypt --recipient="$pubkey" -o "$PASSWORD_STORE/$name.age" "$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD_STORE/$name.age"
-    rm -f "$decrypted_file"
+    shred -u "$TMP_PASS_KEY" "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
   }
 
   # clear all tmp files
-  shred -u "$TMP_PASS_KEY" "$tmp_file" "$decrypted_file"
+  shred -u "$TMP_PASS_KEY" "$decrypted_file"
 
   git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
     git -C "$PASS_STORE" commit -m "Edit $name"
@@ -293,7 +293,6 @@ function clear_clipboard() {
 # Copy password to clipboard
 function copy_password() {
   local password_file="$PASSWORD_STORE/$name.age"
-  local decrypted_file="$(mktemp)"
   local clipmethod="$XDG_SESSION_TYPE"
 
   get_age_pub_key true # get pubkey and create pass.age tmp file
@@ -304,12 +303,11 @@ function copy_password() {
     age --decrypt --identity="$TMP_PASS_KEY" "$password_file" | wl-copy
   fi
   val=$?
+  shred -u "$TMP_PASS_KEY"
   if [ "$val" -ne 0 ]; then
-    shred -u "$TMP_PASS_KEY"
     echo "An error occurred!" >&2
     return 1
   fi
-  shred -u "$TMP_PASS_KEY"
 
   # clear all tmp files
   echo "Clearing the password from clipboard in 5 seconds..."
