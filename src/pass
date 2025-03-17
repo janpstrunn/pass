@@ -267,7 +267,7 @@ function output_password() {
   get_age_pub_key true # get pubkey and create pass.age tmp file
   # use pass.age tmp file to decrypt password to output it
   age --decrypt --identity="$TMP_PASS_KEY" "$PASSWORD_STORE/$name.age"
-  unset TMP_PASS_KEY
+  unset $TMP_PASS_KEY
 }
 
 function fzf_passwords() {
@@ -349,7 +349,7 @@ function remove_password() {
   FORCE="${FORCE:-false}"
   FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
   if [ "$FORCE" = "true" ]; then
-    srm "$PASSWORD_STORE"/"$name"/.age
+    srm "$PASSWORD_STORE"/"$name".age
     echo "Remove $name from store"
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
@@ -359,7 +359,7 @@ function remove_password() {
       no) exit 0 ;;
       esac
     done
-    srm "$PASSWORD_STORE"/"$name"/.age
+    srm "$PASSWORD_STORE"/"$name".age
     echo "Remove $name from store"
   fi
   error_check
@@ -383,7 +383,7 @@ function edit_password() {
   # use pass.age tmp file to decrypt password to modify it later
   age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD"
-    unset TMP_PASS_KEY "$decrypted_file"
+    unset $TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
   }
@@ -393,13 +393,14 @@ function edit_password() {
   # use pass.age pubkey to create our new password
   age --encrypt --recipient="$pubkey" -o "$PASSWORD" "$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD"
-    unset TMP_PASS_KEY "$decrypted_file"
+    unset $TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
   }
 
   # clear all tmp files
-  unset TMP_PASS_KEY "$decrypted_file"
+  srm "$tmp_file"
+  unset $TMP_PASS_KEY "$decrypted_file"
 
   chmod 600 "$PASSWORD"
   git -C "$PASS_STORE" add . &&
@@ -446,7 +447,7 @@ function copy_password() {
     age --decrypt --identity="$TMP_PASS_KEY" "$password_file" | wl-copy
   fi
   val=$?
-  unset TMP_PASS_KEY
+  unset $TMP_PASS_KEY
 
   if [ "$val" -ne 0 ]; then
     echo "An error occurred!" >&2
