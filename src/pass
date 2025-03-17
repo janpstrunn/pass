@@ -23,6 +23,10 @@ TMP_MAIN_KEY="$TMP_DIR"/tmp_main.600
 CLIP_POST_ACTION=false
 PASS_PUBKEY="$KEY_STORE/pass.pubkey"
 
+RED="$(tput setaf 196)"
+GREEN="$(tput setaf 82)"
+BLUE="$(tput setaf 87)"
+
 function usage() {
   cat <<EOF
 Pass: Password Manager
@@ -50,10 +54,6 @@ function version() {
 }
 
 function text() {
-  local color text reset RED GREEN BLUE
-  RED="$(tput setaf 196)"
-  GREEN="$(tput setaf 82)"
-  BLUE="$(tput setaf 87)"
   color=$1
   text=$2
   reset=$(tput sgr0)
@@ -84,63 +84,65 @@ function reset() {
     done
     # Backup files
     cp -r "$PASS_STORE" "$HOME/.pass.bak"
-    reset_decrypt # Decrypt all passwords
-    reset_encrypt # Re-encrypt all passwords with new keys and password
   fi
-}
-
-function reset_decrypt() {
-  local MAIN_DECRYPTED PASS_DECRYPTED
-  MAIN_DECRYPTED="$KEY_STORE/main-decrypted.age"
-  PASS_DECRYPTED="$KEY_STORE/pass-decrypted.age"
-  # Decrypt Main Key
-  age --decrypt -o "$MAIN_DECRYPTED" "$MAIN_KEY"
-  error_check
-  # Decrypt Pass Key
-  age --decrypt --identity="$MAIN_DECRYPTED" -o "$PASS_DECRYPTED" "$PASS_KEY"
-  error_check
-  if [ -d "$PASSWORD_STORE" ]; then
-    # Decrypt all passwords
-    find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 -I {} sh -c "
-        DECRYPTED_PASSWORD=\"\${1%.age}.txt\"
-        age --decrypt --identity=\"$PASS_DECRYPTED\" \"\$1\" > \"\$DECRYPTED_PASSWORD\"
-      " _ {}
-
-    find "$PASSWORD_STORE" -name "*.age" -print0 | while IFS= read -r -d $'\0' file; do
-      DECRYPTED_PASSWORD="${file%.age}.txt"
-      age --decrypt --identity="$PASS_DECRYPTED" "$file" >"$DECRYPTED_PASSWORD"
-      error_check "age --decrypt --identity '$PASS_DECRYPTED' '$file' > '$DECRYPTED_PASSWORD'"
-    done
-  fi
-  error_check
-  # Wipe all .age passwords
-  find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 srm
-  srm "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
-}
-
-function reset_encrypt() {
-  local key pubkey
-  age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
-  age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
-  key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
-  age --encrypt --recipient="$key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
-  error_check
-  age --encrypt --passphrase -o "$MAIN_KEY" "$KEY_STORE/temp_main"
-  val=$?
-  if [ "$val" -ne 0 ]; then
-    echo "An error occurred!" >&2
-    srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
+  if [ ! -d "$PASSWORD_STORE" ]; then
+    echo "Password Store does not exist!"
     exit 1
   fi
-  pubkey=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n')
-  # Encrypt all passwords
-  find "$PASSWORD_STORE" -name "*.txt" -print0 | xargs -0 -I {} sh -c "
-      ENCRYPTED_PASSWORD=\"\${1%.txt}.age\"
-      age --encrypt --recipient=\"$pubkey\" \"\$1\" > \"\$ENCRYPTED_PASSWORD\"
-      rm -f \"\$1\"
-    " _ {}
-  srm "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
-  text "$GREEN" "All passwords have been re-encrypted with new keys!"
+  local ORIGINAL_MAIN_DECRYPTED ORIGINAL_PASS_DECRYPTED TMP_MAIN TMP_PASS TMP_PASSPUBKEY
+  local new_pubkey new_main_pubkey
+  ORIGINAL_MAIN_DECRYPTED="$KEY_STORE/main-decrypted.age"
+  ORIGINAL_PASS_DECRYPTED="$KEY_STORE/pass-decrypted.age"
+  TMP_MAIN="$KEY_STORE/main-temp.age"
+  TMP_PASS="$KEY_STORE/pass-temp.age"
+  TMP_PASSPUBKEY="$KEY_STORE/pass-temp.pubkey"
+
+  # Old Set
+  # main.age > main-decrypted.age
+  # pass.age > pass-decrypted.age
+  # pass.pubkey
+
+  # New Set
+  # new main.age > main-temp.age
+  # new pass.age > pass-temp.age
+  # new pass.pubkey > pass-temp.pubkey
+
+  # Decrypt Original Main Key
+  age --decrypt -o "$ORIGINAL_MAIN_DECRYPTED" "$MAIN_KEY"
+  error_check
+  # Decrypt Original Pass Key
+  age --decrypt --identity="$ORIGINAL_MAIN_DECRYPTED" -o "$ORIGINAL_PASS_DECRYPTED" "$PASS_KEY"
+  error_check
+
+  # Create new keys
+  age-keygen -o "$TMP_PASS" # Key used for passwords
+  age-keygen -o "$TMP_MAIN" # encryption layer for pass_key
+
+  # Create new pass.pubkey
+  awk -F 'key: ' '{print $2}' <"$TMP_PASS" | tr -d '\n' >"$TMP_PASSPUBKEY"
+
+  new_pubkey=$(awk -F 'key: ' '{print $2}' <"$TMP_PASS" | tr -d '\n')
+
+  find "$PASSWORD_STORE" -name "*.age" -print0 | while IFS= read -r -d $'\0' file; do
+    DECRYPTED_PASSWORD="${file%.age}.txt"
+    age --decrypt --identity="$ORIGINAL_PASS_DECRYPTED" "$file" >"$DECRYPTED_PASSWORD"
+    age --encrypt --recipient="$new_pubkey" "$DECRYPTED_PASSWORD" >"$file"
+  done
+  error_check
+
+  # Wipe all decrypted passwords
+  find "$PASSWORD_STORE" -name "*.txt" -print0 | xargs -0 srm
+  srm "$ORIGINAL_MAIN_DECRYPTED" "$ORIGINAL_PASS_DECRYPTED" "$MAIN_KEY" "$PASS_KEY" "$PASS_PUBKEY"
+  mv "$TMP_PASSPUBKEY" "$PASS_PUBKEY"
+
+  new_main_pubkey=$(awk -F 'key: ' '{print $2}' <"$TMP_MAIN" | tr -d '\n')
+
+  age --encrypt --recipient="$new_main_pubkey" -o "$PASS_KEY" "$TMP_PASS"
+  age --encrypt --passphrase -o "$MAIN_KEY" "$TMP_MAIN"
+
+  srm "$TMP_MAIN" "$TMP_PASS"
+
+  text "$GREEN" "Complete!"
 }
 
 # Setup directories, gpg and age keys, and git repository
@@ -295,8 +297,6 @@ function generate_password() {
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
   if [ "$CLIP_POST_ACTION" = "true" ]; then
     copy_password
-  else
-    echo "$CLIP_POST_ACTION"
   fi
 }
 
