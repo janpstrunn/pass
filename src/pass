@@ -12,7 +12,7 @@ KEY_STORE=${KEY_STORE:-"$PASS_STORE/keys/"}
 MAIN_KEY=${MAIN_KEY:-"$KEY_STORE/main.age"}
 PASS_KEY=${PASS_KEY:-"$KEY_STORE/pass.age"}
 TMP_MAIN_KEY=/run/user/"$(id -u)"/mainkey.tmp
-TMP_PASS_KEY=/run/user/"$(id -u)"/passkey.tmp
+TMP_PASS_DIR=/run/user/"$(id -u)"
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
@@ -179,7 +179,8 @@ function get_age_pub_key() {
   error_check
   if [ "$private" = "true" ]; then
     # use main.age tmp file and create a pass.age tmp file (shorter lived than main.age tmp file)
-    age --decrypt --identity="$TMP_MAIN_KEY" -o "$TMP_PASS_KEY" "$PASS_KEY"
+    TMP_PASS_KEY=$(mktemp --tmpdir="$TMP_PASS_DIR" tmp_pass.XXXXXX)
+    age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" >"$TMP_PASS_KEY"
   fi
   error_check
 }
@@ -277,7 +278,8 @@ function edit_password() {
   # use pass.age tmp file to decrypt password to modify it later
   age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD_STORE/$name.age"
-    shred -u "$TMP_PASS_KEY" "$decrypted_file"
+    shred -u "$decrypted_file"
+    unset TMP_PASS_KEY
     echo "An error occurred!" >&2
     return 1
   }
@@ -287,13 +289,15 @@ function edit_password() {
   # use pass.age pubkey to create our new password
   age --encrypt --recipient="$pubkey" -o "$PASSWORD_STORE/$name.age" "$decrypted_file" || {
     mv "$tmp_file" "$PASSWORD_STORE/$name.age"
-    shred -u "$TMP_PASS_KEY" "$decrypted_file"
+    shred -u "$decrypted_file"
+    unset TMP_PASS_KEY
     echo "An error occurred!" >&2
     return 1
   }
 
   # clear all tmp files
-  shred -u "$TMP_PASS_KEY" "$decrypted_file"
+  shred -u "$decrypted_file"
+  unset TMP_PASS_KEY
 
   git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
     git -C "$PASS_STORE" commit -m "Edit $name"
@@ -336,7 +340,8 @@ function copy_password() {
     age --decrypt --identity="$TMP_PASS_KEY" "$password_file" | wl-copy
   fi
   val=$?
-  shred -u "$TMP_PASS_KEY"
+  unset TMP_PASS_KEY
+
   if [ "$val" -ne 0 ]; then
     echo "An error occurred!" >&2
     return 1
