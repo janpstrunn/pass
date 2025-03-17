@@ -97,12 +97,21 @@ Examples:
 
 First time running `pass`, requires to run the `setup` command: `./pass setup`
 
-## Planned
+## Plans
+
+### This repository
 
 - [x] Add support for `git`
 - [x] Create a .passrc
 - [x] Re-encrypt all passwords with new age key
 - [x] Import passwords from passwordstore
+
+### Helpers
+
+- [ ] Manage OTP passwords using [pass-otp](https://github.com/janpstrunn/pass-otp)
+- [ ] Store passwords in a tomb using `pass-tomb`
+- [ ] Manage Recovery Keys using `pass-recuva`
+- [ ] Easily use `pass` and its helpers using `rofipass`
 
 ## Potential Security Issues
 
