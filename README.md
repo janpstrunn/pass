@@ -108,7 +108,7 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 
 ### Helpers
 
-- [ ] Manage OTP passwords using [pass-otp](https://github.com/janpstrunn/pass-otp)
+- [x] Manage OTP passwords using [pass-otp](https://github.com/janpstrunn/pass-otp)
 - [ ] Store passwords in a tomb using `pass-tomb`
 - [ ] Manage Recovery Keys using `pass-recuva`
 - [ ] Easily use `pass` and its helpers using `rofipass`
