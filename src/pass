@@ -64,7 +64,7 @@ EOF
 }
 
 function version() {
-  echo "v.1.2.0"
+  echo "v.1.1.1"
 }
 
 function text() {
