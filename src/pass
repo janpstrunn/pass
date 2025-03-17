@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 
+# Envs
+
+PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
+
+# Global Variables
+
 PASSWORD_STORE=${PASSWORD_STORE:-"$PASS_STORE/passwords/"}
-
 KEY_STORE=${KEY_STORE:-"$PASS_STORE/keys/"}
-
 MAIN_KEY=${MAIN_KEY:-"$KEY_STORE/main.age"}
 PASS_KEY=${PASS_KEY:-"$KEY_STORE/pass.age"}
-
 TMP_MAIN_KEY=/run/user/"$(id -u)"/mainkey.tmp
 TMP_PASS_KEY=/run/user/"$(id -u)"/passkey.tmp
-
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
-
 FORCE=false
 
 function usage() {
@@ -27,7 +28,7 @@ Available options:
 Available commands:
 cp, copy [name]                            - Copy password to clipboard
 edit [name]                                - Edit an existing password
-init                                       - Re-encrypts all passwords
+reset                                      - Re-encrypts all passwords
 find                                       - Find files
 ls, list                                   - List all passwords in a tree format
 new, generate [name] [length]              - Generate a new password
@@ -52,7 +53,7 @@ function error_check() {
   }
 }
 
-function init() {
+function reset() {
   # Backup files
   cp -r "$PASS_STORE" "$HOME/.pass.bak"
   init_decrypt # Decrypt all passwords
@@ -63,17 +64,21 @@ function init_decrypt() {
   local MAIN_DECRYPTED PASS_DECRYPTED
   MAIN_DECRYPTED="$KEY_STORE/main-decrypted.age"
   PASS_DECRYPTED="$KEY_STORE/pass-decrypted.age"
+  # Decrypt Main Key
   age --decrypt -o "$MAIN_DECRYPTED" "$MAIN_KEY"
   error_check
+  # Decrypt Pass Key
   age --decrypt --identity="$MAIN_DECRYPTED" -o "$PASS_DECRYPTED" "$PASS_KEY"
   error_check
   if [ -d "$PASSWORD_STORE" ]; then
+    # Decrypt all passwords
     find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 -I {} sh -c "
         DECRYPTED_PASSWORD=\"\${1%.age}.txt\"
         age --decrypt --identity=\"$PASS_DECRYPTED\" \"\$1\" > \"\$DECRYPTED_PASSWORD\"
       " _ {}
   fi
   error_check
+  # Wipe all .age passwords
   find "$PASSWORD_STORE" -name "*.age" -print0 | xargs -0 shred -u
   shred -u "$MAIN_DECRYPTED" "$PASS_DECRYPTED"
 }
@@ -92,6 +97,7 @@ function init_encrypt() {
     exit 1
   fi
   local pubkey=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n')
+  # Encrypt all passwords
   find "$PASSWORD_STORE" -name "*.txt" -print0 | xargs -0 -I {} sh -c "
       ENCRYPTED_PASSWORD=\"\${1%.txt}.age\"
       age --encrypt --recipient=\"$pubkey\" \"\$1\" > \"\$ENCRYPTED_PASSWORD\"
@@ -117,7 +123,7 @@ function setup() {
   text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
   mkdir -p "$PASS_STORE" "$KEY_STORE" "$PASSWORD_STORE"
   error_check
-
+  echo
   text "$GREEN" "2. Creating your main and pass age keys"
   age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
   age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
@@ -131,19 +137,18 @@ function setup() {
     shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass" "$PASS_KEY"
     exit 1
   fi
-
   shred -u "$KEY_STORE/temp_main" "$KEY_STORE/temp_pass"
-
+  echo
   text "$BLUE" "Two keys have been created: main.age and pass.age"
   text "$BLUE" "You will need both to access your accounts. And both are encrypted by default."
   text "$BLUE" "main.age is required to decrypt pass.age, and pass.age is required to decrypt all your passwords"
   text "$BLUE" "You can decrypt main.age with the password you just set"
   text "$RED" "Do not forget your password. If you forget it you will loose access to all your passwords"
-
+  echo
   text "$GREEN" "3. Creating your git repository"
   git -C "$PASS_STORE" init
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Initial commit"
-
+  echo
   text "$GREEN" "Setup Complete"
 }
 
@@ -321,12 +326,15 @@ done
 shift $((OPTIND - 1))
 
 case "$1" in
--h | --help | usage) usage ;;
+-h | --help | usage)
+  usage
+  exit 0
+  ;;
 setup)
   setup
   exit 0
   ;;
-init)
+reset)
   init
   exit 0
   ;;
