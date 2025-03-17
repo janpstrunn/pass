@@ -22,11 +22,14 @@ function usage() {
 Pass: Password Manager
 Usage: $0 [option] [command]
 Available options:
+-h, --help, usage                          - Displays this message and exists
 -f, --force                                - Lifts confirmation dialogs
--h, --help                                 - Displays this message and exits
 Available commands:
-copy [name]                                - Copy password to clipboard
+cp, copy [name]                            - Copy password to clipboard
 edit [name]                                - Edit an existing password
+init                                       - Re-encrypts all passwords
+find                                       - Find files
+ls, list                                   - List all passwords in a tree format
 new, generate [name] [length]              - Generate a new password
 rm, remove [name] -f                       - Remove password from store
 setup                                      - Setup keys, directories and git
@@ -178,6 +181,19 @@ function list_passwords() {
   fi
 }
 
+function find_passwords() {
+  if [ -d "$PASS_STORE" ]; then
+    if command -v fd &>/dev/null; then
+      fd -t f -i "$name" "$PASS_STORE"
+    else
+      find "$PASS_STORE" -type f -iname "*$name*"
+    fi
+  else
+    echo "No password store found!"
+    echo "Run setup first!"
+  fi
+}
+
 # Generate passwords, with optional length choice
 function generate_password() {
   if [ -f "$name" ]; then
@@ -305,7 +321,7 @@ done
 shift $((OPTIND - 1))
 
 case "$1" in
-usage) usage ;;
+-h | --help | usage) usage ;;
 setup)
   setup
   exit 0
@@ -327,13 +343,13 @@ edit)
   edit_password
   exit 0
   ;;
-copy)
+cp | copy)
   shift
   name=$1
   copy_password
   exit 0
   ;;
-list)
+ls | list)
   list_passwords
   exit 0
   ;;
@@ -343,8 +359,10 @@ rm | remove)
   remove_password
   exit 0
   ;;
-*)
-  list_passwords
+find)
+  shift
+  name=$1
+  find_passwords
   exit 0
   ;;
 esac
