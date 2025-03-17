@@ -307,9 +307,10 @@ function git_passwords() {
 
 # Generate passwords, with optional length choice
 function generate_password() {
-  local FORCE pw_options
+  local FORCE pw_options PASSWORD
   FORCE="${FORCE:-false}"
   FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
+  PASSWORD="$PASSWORD_STORE/$name.age"
   if [ -z "$pw_options" ]; then
     pw_options="-Bsncy1n"
   fi
@@ -317,10 +318,10 @@ function generate_password() {
     echo "pwgen could not be found. Please install it."
     exit 1
   fi
-  if [ -f "$PASSWORD_STORE/$name" ]; then
+  if [ -f "$PASSWORD" ]; then
     echo "This password already exists!"
     if [ "$FORCE" = "true" ]; then
-      srm "$PASSWORD_STORE"/"$name"/.age
+      srm "$PASSWORD"
       echo "Removed $name from store"
     else
       exit 1
@@ -331,8 +332,9 @@ function generate_password() {
   cd "$PASSWORD_STORE" || exit 1
   mkdir -p "$(dirname "$name")"
 
-  pwgen "$length" "$pw_options" | age --encrypt --recipient="$pubkey" --output="$PASSWORD_STORE/$name.age" # create passwords from pass.age pubkey
+  pwgen "$length" "$pw_options" | age --encrypt --recipient="$pubkey" --output="$PASSWORD" # create passwords from pass.age pubkey
   error_check
+  chmod 600 "$PASSWORD"
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
   if [ "$CLIP_POST_ACTION" = "true" ]; then
     copy_password
@@ -364,20 +366,21 @@ function remove_password() {
 
 # Edit password
 function edit_password() {
-  local tmp_file decrypted_file
+  local tmp_file decrypted_file PASSWORD
+  PASSWORD="$PASSWORD_STORE/$name.age"
   tmp_file="$PASSWORD_STORE/$name.tmp"
   decrypted_file="$(mktemp --tmpdir="$TMP_DIR" tmp_decpass.XXXXXX)"
 
   get_age_pub_key true # get pubkey and create pass.age tmp file
 
   if [ -f "$tmp_file" ]; then
-    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
+    mv "$tmp_file" "$PASSWORD"
   fi
 
   mv "$PASSWORD_STORE/$name.age" "$tmp_file" # safeguard original password
   # use pass.age tmp file to decrypt password to modify it later
   age --decrypt --identity="$TMP_PASS_KEY" "$tmp_file" >"$decrypted_file" || {
-    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
+    mv "$tmp_file" "$PASSWORD"
     unset TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
@@ -386,8 +389,8 @@ function edit_password() {
   nano "$decrypted_file"
 
   # use pass.age pubkey to create our new password
-  age --encrypt --recipient="$pubkey" -o "$PASSWORD_STORE/$name.age" "$decrypted_file" || {
-    mv "$tmp_file" "$PASSWORD_STORE/$name.age"
+  age --encrypt --recipient="$pubkey" -o "$PASSWORD" "$decrypted_file" || {
+    mv "$tmp_file" "$PASSWORD"
     unset TMP_PASS_KEY "$decrypted_file"
     echo "An error occurred!" >&2
     return 1
@@ -396,7 +399,8 @@ function edit_password() {
   # clear all tmp files
   unset TMP_PASS_KEY "$decrypted_file"
 
-  git -C "$PASS_STORE" add "$PASSWORD_STORE/$name.age" &&
+  chmod 600 "$PASSWORD"
+  git -C "$PASS_STORE" add . &&
     git -C "$PASS_STORE" commit -m "Edit $name"
 
   if [ "$CLIP_POST_ACTION" = "true" ]; then
