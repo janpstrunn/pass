@@ -17,10 +17,12 @@ RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
 
+# Read .passrc
 FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
 CLIPHIST_WIPE=$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")
 CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
 
+# Fallback values
 FORCE="${FORCE:-false}"
 CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
 CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
@@ -31,9 +33,9 @@ function usage() {
 Pass: Password Manager
 Usage: $0 [option] [command]
 Available options:
--h, --help, usage                           - Displays this message and exists
--f, --force                                 - Lifts confirmation dialogs
 -c, --clip                                  - Copy password to clipboard after generate or edit
+-f, --force                                 - Lifts confirmation dialogs
+-h, --help, usage                           - Displays this message and exists
 Available commands:
 clip [pass-name]                            - Copy password to clipboard
 edit [pass-name]                            - Edit an existing password using nano
