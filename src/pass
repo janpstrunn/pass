@@ -277,7 +277,7 @@ function fzf_passwords() {
     cd "$PASSWORD_STORE" || exit 1
     if command -v fzf &>/dev/null; then
       name=$(fzf --prompt "Select a password")
-      name=$(basename "$name" | awk -F. '{print $1}')
+      name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
     else
       echo "fzf is not installed"
     fi
