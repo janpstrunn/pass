@@ -252,9 +252,16 @@ function git_passwords() {
 
 # Generate passwords, with optional length choice
 function generate_password() {
-  local FORCE
+  local FORCE pw_options
   FORCE="${FORCE:-false}"
   FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
+  if [ -z "$pw_options" ]; then
+    pw_options="-Bsncy1n"
+  fi
+  if ! command -v pwgen &>/dev/null; then
+    echo "pwgen could not be found. Please install it."
+    exit 1
+  fi
   if [ -f "$PASSWORD_STORE/$name" ]; then
     echo "This password already exists!"
     if [ "$FORCE" = "true" ]; then
@@ -269,7 +276,7 @@ function generate_password() {
   cd "$PASSWORD_STORE" || exit 1
   mkdir -p "$(dirname "$name")"
 
-  pwgen "$length" -Bsncy1n | age --encrypt --recipient="$pubkey" --output="$PASSWORD_STORE/$name.age" # create passwords from pass.age pubkey
+  pwgen "$length" "$pw_options" | age --encrypt --recipient="$pubkey" --output="$PASSWORD_STORE/$name.age" # create passwords from pass.age pubkey
   error_check
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
   if [ "$CLIP_POST_ACTION" = "true" ]; then
@@ -446,6 +453,7 @@ new | generate)
   shift
   name="$1"
   length=${2:-72}
+  pw_options="$*"
   generate_password
   exit 0
   ;;
