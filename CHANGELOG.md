@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0]
+
+### Added
+
+- v1.1.0 Change password permission when importing, and commit changes
+
 ## [1.1.0] 2025-03-17
 
 ### Added
