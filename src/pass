@@ -19,27 +19,29 @@ BLUE="$(tput setaf 87)"
 
 FORCE=$(sed -n 's/^FORCE=//p' "$PASSRC")
 CLIPHIST_WIPE=$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")
+CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
 
 FORCE="${FORCE:-false}"
 CLIPHIST_WIPE="${CLIPHIST_WIPE:-false}"
+CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
 
 function usage() {
   cat <<EOF
 Pass: Password Manager
 Usage: $0 [option] [command]
 Available options:
--h, --help, usage                          - Displays this message and exists
--f, --force                                - Lifts confirmation dialogs
+-h, --help, usage                           - Displays this message and exists
+-f, --force                                 - Lifts confirmation dialogs
+-c, --clip [pass-name]                      - Copy password to clipboard
 Available commands:
-cp, copy [name]                            - Copy password to clipboard
-edit [name]                                - Edit an existing password using nano
-reset                                      - Re-encrypts all passwords with new key and master password
-git [git-args]                             - Run any git coomand at PASS_STORE
-find                                       - Find files and output as tree format
-ls, list                                   - List all passwords in a tree format
-new, generate [name] [length] -f           - Generate a new password
-rm, remove [name] -f                       - Remove password from store
-setup                                      - Setup keys, directories and git
+edit [pass-name]                            - Edit an existing password using nano
+reset                                       - Re-encrypts all passwords with new key and master password
+git [git-args]                              - Run any git coomand at PASS_STORE
+find                                        - Find files and output as tree format
+ls, list                                    - List all passwords in a tree format
+new, generate [pass-name] [length] -f       - Generate a new password
+rm, remove [pass-name] -f                   - Remove password from store
+setup                                       - Setup keys, directories and git
 EOF
 }
 
@@ -325,15 +327,24 @@ function copy_password() {
   fi
 
   # clear all tmp files
-  echo "Clearing the password from clipboard in 5 seconds..."
-  sleep 5s
+  echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
+  sleep "$CLIPBOARD_CLEAR_TIME"s
   clear_clipboard
 }
 
-while getopts ":hfk:s:" opt; do
+while getopts ":hfc:" opt; do
   case "$opt" in
-  h) usage ;;
+  h)
+    usage
+    exit 0
+    ;;
   f) FORCE=true ;;
+  c)
+    shift
+    name=$1
+    copy_password
+    exit 0
+    ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
     usage
@@ -367,12 +378,6 @@ edit)
   shift
   name=$1
   edit_password
-  exit 0
-  ;;
-cp | copy)
-  shift
-  name=$1
-  copy_password
   exit 0
   ;;
 ls | list)
