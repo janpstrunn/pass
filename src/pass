@@ -21,6 +21,7 @@ PASS_KEY="$KEY_STORE/pass.age"
 TMP_DIR=/run/user/"$(id -u)"
 TMP_MAIN_KEY="$TMP_DIR"/tmp_main.600
 CLIP_POST_ACTION=false
+PASS_PUBKEY="$KEY_STORE/pass.pubkey"
 
 function usage() {
   cat <<EOF
@@ -136,7 +137,7 @@ function setup() {
   elif ! command -v git &>/dev/null; then
     echo "git could not be found. Please install it."
     exit 1
-  elif ! command -v secure-delete &>/dev/null; then
+  elif ! command -v srm &>/dev/null; then
     echo "secure-delete could not be found. Please install it."
     exit 1
   fi
@@ -151,9 +152,10 @@ function setup() {
   echo
   text "$GREEN" "2. Creating your main and pass age keys"
   age-keygen -o "$KEY_STORE/temp_pass" # Key used for passwords
+  awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_pass" | tr -d '\n' >"$PASS_PUBKEY"
   age-keygen -o "$KEY_STORE/temp_main" # encryption layer for pass_key
-  key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
-  age --encrypt --recipient="$key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
+  main_key=$(awk -F 'key: ' '{print $2}' <"$KEY_STORE/temp_main" | tr -d '\n')
+  age --encrypt --recipient="$main_key" -o "$PASS_KEY" "$KEY_STORE/temp_pass"
   error_check
   age --encrypt --passphrase -o "$MAIN_KEY" "$KEY_STORE/temp_main"
   val=$?
@@ -181,17 +183,16 @@ function setup() {
 function get_age_pub_key() {
   local private
   private=$1 # expects 'true'
-  if [ ! -f "$TMP_MAIN_KEY" ]; then
-    touch "$TMP_MAIN_KEY"
-    chmod 600 "$TMP_MAIN_KEY"
-    age --decrypt "$MAIN_KEY" >"$TMP_MAIN_KEY" # use main.age and create a tmp file
-    error_check
-  fi
-  # use main.age tmp file privatekey to get pass.age public key
-  pubkey=$(age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" | awk -F 'key: ' '{print $2}' | tr -d '\n')
+  pubkey=$(cat "$PASS_PUBKEY")
   error_check
   if [ "$private" = "true" ]; then
     # use main.age tmp file and create a pass.age tmp file (shorter lived than main.age tmp file)
+    if [ ! -f "$TMP_MAIN_KEY" ]; then
+      touch "$TMP_MAIN_KEY"
+      chmod 600 "$TMP_MAIN_KEY"
+      age --decrypt "$MAIN_KEY" >"$TMP_MAIN_KEY" # use main.age and create a tmp file
+      error_check
+    fi
     TMP_PASS_KEY=$(mktemp --tmpdir="$TMP_DIR" tmp_pass.XXXXXX)
     age --decrypt --identity="$TMP_MAIN_KEY" "$PASS_KEY" >"$TMP_PASS_KEY"
   fi
@@ -205,6 +206,25 @@ function list_passwords() {
       eza -T "$PASS_STORE"
     else
       tree "$PASS_STORE"
+    fi
+  else
+    echo "No password store found!"
+    echo "Run setup first!"
+  fi
+}
+
+function fzf_passwords() {
+  if ! command -v fzf &>/dev/null; then
+    echo "fzf could not be found. Please install it."
+    exit 1
+  fi
+  if [ -d "$PASS_STORE" ]; then
+    cd "$PASS_STORE" || exit 1
+    if command -v fzf &>/dev/null; then
+      name=$(fzf --prompt "Select a password")
+      name=$(basename "$name" | awk -F. '{print $1}')
+    else
+      echo "fzf is not installed"
     fi
   else
     echo "No password store found!"
@@ -346,9 +366,6 @@ function clear_clipboard() {
 
 # Copy password to clipboard
 function copy_password() {
-  if [ -z "$name" ]; then
-    echo "No password name is given"
-  fi
   local password_file="$PASSWORD_STORE/$name.age"
   local clipmethod="$XDG_SESSION_TYPE"
   local CLIPBOARD_CLEAR_TIME
@@ -415,6 +432,9 @@ setup)
 clip)
   shift
   name=$1
+  if [[ -z "$name" ]]; then
+    fzf_passwords
+  fi
   copy_password
   exit 0
   ;;
@@ -432,6 +452,9 @@ new | generate)
 edit)
   shift
   name=$1
+  if [[ -z "$name" ]]; then
+    fzf_passwords
+  fi
   edit_password
   exit 0
   ;;
@@ -442,6 +465,9 @@ ls | list)
 rm | remove)
   shift
   name=$1
+  if [[ -z "$name" ]]; then
+    fzf_passwords
+  fi
   remove_password
   exit 0
   ;;
