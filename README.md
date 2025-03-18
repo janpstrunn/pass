@@ -96,7 +96,7 @@ Commands:
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
   ls, list                 List all stored passwords in a tree format
-  add, new, gen, generate [-a -f -c] <pass-name> <password-length>
+  add, new, gen, generate [-a -f -c] <pass-name> <password-length> [pwgen-args]
                            Generate a new password
   rotate [-f]              Rotate all keys and update master password and PIN
   rm, remove [-f] <pass-name>

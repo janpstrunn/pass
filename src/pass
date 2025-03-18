@@ -63,7 +63,7 @@ Commands:
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
   ls, list                 List all stored passwords in a tree format
-  add, new, gen, generate [-a -f -c] <pass-name> <password-length>
+  add, new, gen, generate [-a -f -c] <pass-name> <password-length> [pwgen-args]
                            Generate a new password
   rotate [-f]              Rotate all keys and update master password and PIN
   rm, remove [-f] <pass-name>
@@ -642,7 +642,7 @@ function generate_password() {
   fi
 }
 
-while getopts ":hnafc:d:i:s:" opt; do
+while getopts ":hnafc:d:p:i:s:" opt; do
   case "$opt" in
   a)
     ENTROPY_AMPLIFICATION=true
@@ -662,6 +662,7 @@ while getopts ":hnafc:d:i:s:" opt; do
     ;;
   f) FORCE=true ;;
   d) DIALOG="$OPTARG" ;;
+  p) PWGEN_OPT="$OPTARG" ;;
   c)
     CLIP_POST_ACTION=true
     ;;
@@ -726,7 +727,6 @@ add | new | gen | generate)
   shift
   name="$1"
   length=${2:-72}
-  PWGEN_OPT="$*"
   generate_password
   exit 0
   ;;
