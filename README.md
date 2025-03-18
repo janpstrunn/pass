@@ -105,6 +105,7 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [x] Create a .passrc
 - [x] Re-encrypt all passwords with new age key
 - [x] Import passwords from passwordstore
+- [ ] Complete overhaul on how private keys are managed and temporary stored
 
 ### Helpers
 
