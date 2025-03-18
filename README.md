@@ -57,6 +57,7 @@ Environment Variables:
 - `PASS_STORE`:
   - Password Directory.
   - Default to `"$HOME/.pass/"`
+  - Setting `PASS_STORE` to any directory that is not present in `$HOME` will fail. This is a measure to preserve the user authority over their password store
 - `PASSRC`:
   - Configuration file.
   - Default to `"$HOME/.passrc`
