@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.0]
+
+### Added
+
+- Use `zenity` to get master password and PIN passwords
+- Use `notify-send` to notify on clipboard copy
+
+### Fixed
+
+- Key rotation not working properly
+
 ## [2.0.0]
 
 ### Added
