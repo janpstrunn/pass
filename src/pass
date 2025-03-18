@@ -15,6 +15,16 @@ ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
 ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
 
+if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+  if ! command -v argon2 &>/dev/null; then
+    echo "argon2 could not be found. Please install it."
+    exit 1
+  elif ! command -v expect &>/dev/null; then
+    echo "expect could not be found. Please install it."
+    exit 1
+  fi
+fi
+
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
@@ -27,9 +37,6 @@ elif ! command -v git &>/dev/null; then
   exit 1
 elif ! command -v srm &>/dev/null; then
   echo "secure-delete could not be found. Please install it."
-  exit 1
-elif ! command -v argon2 &>/dev/null; then
-  echo "argon2 could not be found. Please install it."
   exit 1
 fi
 
@@ -188,7 +195,13 @@ function rotate_keys() {
     fi
   done
 
-  global_error
+  val=$?
+  if [ "$val" -ne 0 ]; then
+    for file in "$TMP_MAIN" "$TMP_PASSPUBKEY" "$TMP_PASS_ROTATE"; do
+      [ -f "$file" ] && srm "$file"
+    done
+  fi
+
   key_encryption "$TMP_MAIN" "$TMP_PASS_ROTATE" "$TMP_PASSPUBKEY"
 
   text "$GREEN" "Complete!"
@@ -364,6 +377,10 @@ function get_age_key() {
       text "$BLUE" "Enter your master password:"
       case "$DIALOG" in
       zenity)
+        if ! command -v zenity &>/dev/null; then
+          echo "zenity could not be found. Please install it."
+          exit 1
+        fi
         passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text)
         get_age_key_amp_get master
         ;;
@@ -377,6 +394,10 @@ function get_age_key() {
       text "$BLUE" "Enter your PIN password:"
       case "$DIALOG" in
       zenity)
+        if ! command -v zenity &>/dev/null; then
+          echo "zenity could not be found. Please install it."
+          exit 1
+        fi
         pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
         ;;
       *)
@@ -431,8 +452,10 @@ function output_password() {
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     key=$(get_age_key_amp_get pass)
     age --decrypt --identity <(echo "$key") "$PASSWORD"
+    global_error
   else
     age --decrypt --identity <(echo "$key") "$PASSWORD"
+    global_error
   fi
 }
 
@@ -443,7 +466,7 @@ function close_password() {
     srm "$TMP_PASS" && text "$GREEN" "Cached private key securely wiped"
     text "$BLUE" "Your secrets are protected behind your master password"
   else
-    text "$BLUE" "No cached pass.age found"
+    text "$BLUE" "No cached private key found"
   fi
 }
 
