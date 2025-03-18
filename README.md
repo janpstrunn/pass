@@ -36,6 +36,9 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 - `fzf`
 - `eza`
 - `fd`
+- `expect`
+- `argon2`
+- `zenity`
 
 ## Installation
 
