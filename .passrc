@@ -8,3 +8,4 @@ CLIPBOARD_CLEAR_TIME=5               # number in seconds, sets the time to clear
 ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
 ENTROPY_SALT=(10 long character +)   # Salt used by EA
 ENTROPY_ITERATION=2                  # Iterations made by EA
+NOTIFY=true                          # Some operations will notify automatically
