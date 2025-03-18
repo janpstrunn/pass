@@ -7,7 +7,7 @@
 
 This project has some important differences. `pass` does not uses `gpg` like [passwordstore](https://www.passwordstore.org/), instead it uses `age` for a more modern and simple way to generate password stores.
 
-It's a CLI tool that tries to make the process of managing passwords, one time passwords (2FA) and recovery keys a breeze while keeping yourself secure with good security standards. [Aware some current potential security issues](#potential-security-issues).
+It's a CLI tool that tries to make the process of managing passwords, one time passwords (2FA) and recovery keys a breeze while keeping yourself secure with good security standards.
 
 ## Features
 
@@ -105,7 +105,7 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [x] Create a .passrc
 - [x] Re-encrypt all passwords with new age key
 - [x] Import passwords from passwordstore
-- [ ] Complete overhaul on how private keys are managed and temporary stored
+- [x] Complete overhaul on how private keys are managed and temporary stored
 
 ### Helpers
 
@@ -113,13 +113,6 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [ ] Store passwords in a tomb using `pass-tomb`
 - [ ] Manage Recovery Keys using `pass-recuva`
 - [ ] Easily use `pass` and its helpers using `rofipass`
-
-## Potential Security Issues
-
-- A non-encrypted format of keys are stored at `/run/user/$(id -u)` when accessing their private keys
-  - main.age is kept until session ends
-  - pass.age is kept until an command ends
-- Filenames and directories are kept non-encrypted, including git comments mentioning their names
 
 ## License
 
