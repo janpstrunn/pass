@@ -115,6 +115,8 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [x] Re-encrypt all passwords with new age key
 - [x] Import passwords from passwordstore
 - [x] Complete overhaul on how private keys are managed and temporary stored
+- [ ] Create documentation
+- [ ] Create auto-completion for `bash` and `zsh`
 
 ### Helpers
 
