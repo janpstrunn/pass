@@ -67,24 +67,28 @@ Pass: Password Manager
 Usage: $0 [options] <command> [arguments]
 
 Options:
-  -c, --clip        Copy password to clipboard after generating or editing
-  -f, --force       Bypass confirmation dialogs
-  -h, --help        Display this help message and exit
-  -o                Print password to stdout
+  -a [-s] <salt> [-i] <iteration>
+                              Use Entropy Amplification
+  -c, --clip                  Copy password to clipboard after password creation
+  -f, --force                 Bypass confirmation dialogs. May be destructive.
+  -h, --help                  Display this help message and exit
 
 Commands:
-  clip <pass-name>         Copy password to clipboard
-  edit <pass-name>         Edit an existing password using nano
+  cp, copy, clip [-a] <pass-name>
+                           Copy password to clipboard
+  close                    Remove cached private key
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
   ls, list                 List all stored passwords in a tree format
-  new, generate [-f -c] <pass-name> <length>
+  new, gen, generate [-a -f -c] <pass-name> <length>
                            Generate a new password
-  reset [-f]               Re-encrypt all passwords with a new key and master password
+  rotate [-f]              Rotate all keys and update master password and PIN
   rm, remove [-f] <pass-name>
                            Remove a password entry
-  setup                    Initialize keys, directories, and Git
+  out, output, stdout [-a] <pass-name>
+                           Print password to stdout
+  setup                    Initialize keys, directories, and git
   version                  Display the current version number
 
 Examples:
@@ -92,7 +96,7 @@ Examples:
   $0 clip MyAccount
   $0 list
   $0 git status
-  $0 reset -f
+  $0 rotate -f
 ```
 
 First time running `pass`, requires to run the `setup` command: `./pass setup`
