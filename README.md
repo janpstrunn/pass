@@ -70,11 +70,11 @@ Pass: Password Manager
 Usage: $0 [options] <command> [arguments]
 
 Options:
-  -a [-s] <salt> [-i] <iteration>
+  -a, --amplify [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
   -c, --clip                  Copy password to clipboard after password creation
   -f, --force                 Bypass confirmation dialogs. May be destructive.
-  -n                          Enable notifications
+  -n, --notify                Enable notifications
   -d [zenity]                 Choose a dialog to get passwords
   -h, --help                  Display this help message and exit
 
