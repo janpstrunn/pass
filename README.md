@@ -54,14 +54,22 @@ mv src/pass "$HOME/.local/bin"
 
 Environment Variables:
 
-- `PASS_STORE`: Password Directory. Default to `"$HOME/.pass/"`
-- `PASSRC`: Configuration file. Default to `"$HOME/.passrc`
+- `PASS_STORE`:
+  - Password Directory.
+  - Default to `"$HOME/.pass/"`
+- `PASSRC`:
+  - Configuration file.
+  - Default to `"$HOME/.passrc`
 
-Configuration File:
+Configuration File. Refer to [.passrc](https://github.com/janpstrunn/pass/blob/main/.passrc)
 
 - `FORCE`: Always ignore confirmation dialogs
 - `CLIPHIST_WIPE`: Clears the cliphist database
 - `CLIPBOARD_CLEAR_TIME`: Time in seconds to clear the clipboard
+- `ENTROPY_AMPLIFICATION`: Always use Entropy Amplification
+- `ENTROPY_SALT`: Set a salt to be used by EA
+- `ENTROPY_ITERATION`: Set iterations used by EA
+- `NOTIFY`: Always enable notifications
 
 ## Usage
 
