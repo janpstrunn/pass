@@ -18,9 +18,10 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 - Output passwords to stdout
 - Run any `git` command
 - Generate strong passwords using `pwgen`
-- Edit passwords
 - Copy password to clipboard and clear clipboard on specified time
 - Rotate `age` keys and re-encrypt all passwords
+- Use `zenity` to insert passwords
+- Empower PIN passwords using `argon2` (Entropy Amplification)
 
 ## Requirements
 
