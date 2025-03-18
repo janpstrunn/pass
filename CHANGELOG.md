@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.0]
+
+### Added
+
+- **Entropy Amplification:** Use powerful hashing (`argon2`) to increase the PIN's entropy required to decrypt pass.age.
+
+### Changed
+
+- `age` keys are now securely stored and manage, without ever leaving an copy in plain-text differently from versions 1.x.x
+
+### Removed
+
+- Editing passwords with an visual editor is deprecated.
+
 ## [1.1.1]
 
 ### Added
