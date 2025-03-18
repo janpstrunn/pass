@@ -4,12 +4,12 @@ PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
 
 PASSWORD_STORE="$PASS_STORE/passwords/"
+OTP_STORE="$PASS_STORE/otp/"
+RECUVA_STORE="$PASS_STORE/recovery/"
 KEY_STORE="$PASS_STORE/keys/"
 MASTER_KEY="$KEY_STORE/master.age"
 PASS_KEY="$KEY_STORE/pass.age"
 PASS_PUBKEY="$KEY_STORE/pass.pubkey"
-
-# Entropy Amplification
 
 ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
@@ -137,7 +137,7 @@ function rotate_keys() {
   local TMP_MAIN TMP_PASS TMP_PASSPUBKEY
   local new_pubkey
   TMP_MAIN="$KEY_STORE/main-temp.age"
-  TMP_PASS="$KEY_STORE/pass-temp.age"
+  TMP_PASS_ROTATE="$KEY_STORE/pass-temp.age"
   TMP_PASSPUBKEY="$KEY_STORE/pass-temp.pubkey"
 
   if [ "$FORCE" = "true" ]; then
@@ -161,14 +161,15 @@ function rotate_keys() {
 
   get_age_key private
 
-  age-keygen -o "$TMP_PASS" # Key used for passwords
-  age-keygen -o "$TMP_MAIN" # encryption layer for pass_key
+  age-keygen -o "$TMP_PASS_ROTATE" # Key used for passwords
+  age-keygen -o "$TMP_MAIN"        # encryption layer for pass_key
 
-  awk -F 'key: ' '{print $2}' <"$TMP_PASS" | tr -d '\n' >"$TMP_PASSPUBKEY"
+  awk -F 'key: ' '{print $2}' <"$TMP_PASS_ROTATE" | tr -d '\n' >"$TMP_PASSPUBKEY"
 
-  new_pubkey=$(cat "$TMP_PASS")
+  new_pubkey=$(awk -F 'key: ' '{print $2}' <"$TMP_PASS_ROTATE" | tr -d '\n')
 
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+    unset key
     key=$(get_age_key_amp_get)
   fi
 
@@ -180,11 +181,13 @@ function rotate_keys() {
         srm "$file"
         age --encrypt --recipient="$new_pubkey" "$DECRYPTED_PASSWORD" >"$file"
         srm "$DECRYPTED_PASSWORD"
+        text "$GREEN" "Encrypted $file"
       done
     fi
   done
 
-  key_encryption "$TMP_MAIN" "$TMP_PASS" "$TMP_PASSPUBKEY"
+  global_error
+  key_encryption "$TMP_MAIN" "$TMP_PASS_ROTATE" "$TMP_PASSPUBKEY"
 
   text "$GREEN" "Complete!"
 }
@@ -250,6 +253,23 @@ EOF
   done
 }
 
+function setup_error {
+  if [ "$1" == "wipe" ]; then
+    for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
+      [ -f "$file" ] && srm "$file"
+    done
+    exit 1
+  fi
+  error=$?
+  [[ "$error" -ne 0 ]] && {
+    echo "An error occurred!" >&2
+    for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
+      [ -f "$file" ] && srm "$file"
+    done
+    exit 1
+  }
+}
+
 function setup() {
   local SETUP_PASS SETUP_MASTER
   SETUP_MASTER="$KEY_STORE/master-setup.age"
@@ -259,23 +279,6 @@ function setup() {
   ENTROPY_SALT=${ENTROPY_SALT:-$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")}
   ENTROPY_ITERATION=${ENTROPY_ITERATION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
   ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
-
-  function setup_error {
-    if [ "$1" == "wipe" ]; then
-      for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
-        [ -f "$file" ] && srm "$file"
-      done
-      exit 1
-    fi
-    error=$?
-    [[ "$error" -ne 0 ]] && {
-      echo "An error occurred!" >&2
-      for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
-        [ -f "$file" ] && srm "$file"
-      done
-      exit 1
-    }
-  }
 
   if [ -f "$MASTER_KEY" ] || [ -f "$PASS_KEY" ] || [ -f "$PASS_PUBKEY" ]; then
     text "$RED" "You already have a previous setup of pass."
@@ -356,6 +359,7 @@ function get_age_key() {
     if [ ! -f "$TMP_PASS" ]; then
       touch "$TMP_PASS"
       chmod 600 "$TMP_PASS"
+      text "$BLUE" "Enter your master password"
       age --decrypt "$MASTER_KEY" >"$TMP_PASS"
       global_error
     fi
@@ -373,7 +377,6 @@ function get_age_key() {
 
 function get_age_key_amp_get() {
   local TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
-
   key=$(
     expect <<EOF | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '[:space:]' | sed 's/%*$//'
 spawn age --decrypt "$TMP_PASS"
@@ -382,8 +385,8 @@ send "$pin\r"
 expect eof
 EOF
   )
-  key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/' | tr -d '[:space:]')
-  echo -n "$key"
+  key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
+  echo -n "$key" | tr -d '[:space:]'
 }
 
 function git_passwords() {
