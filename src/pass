@@ -44,6 +44,8 @@ Options:
                               Use Entropy Amplification
   -c, --clip                  Copy password to clipboard after password creation
   -f, --force                 Bypass confirmation dialogs. May be destructive.
+  -n                          Enable notifications
+  -d [zenity]                 Choose a dialog to get passwords
   -h, --help                  Display this help message and exit
 
 Commands:
