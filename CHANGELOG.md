@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.1]
+
+### Added
+
+- Long form options for Entropy Amplification (--amplify) and Notifications (--notify)
+- Installation check for `argon2`, `zenity` and `expect` when about to be used
+
+### Fixed
+
 ## [2.1.0]
 
 ### Added
