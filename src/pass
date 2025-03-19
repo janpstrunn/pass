@@ -571,8 +571,6 @@ function remove_password() {
 }
 
 function clear_clipboard() {
-  local CLIPHIST_WIPE
-  CLIPHIST_WIPE=${CLIPHIST_WIPE:-$(sed -n 's/^CLIPHIST_WIPE=//p' "$PASSRC")}
   if [ "$clipmethod" = "x11" ]; then
     echo "" | xclip -sel clip
   elif [ "$clipmethod" = "wayland" ]; then
