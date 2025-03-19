@@ -30,48 +30,50 @@ fi
 
 function usage() {
   cat <<EOF
-Pass: Password Manager
+pass: A modern CLI password manager
 
 Usage: $0 [options] <command> [arguments]
 
 Options:
   -a [-s] <salt> [-i] <iteration>
-                              Use Entropy Amplification
   -c                          Copy password to clipboard after password creation
+  -d [zenity]                 Choose a dialog to get passwords
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
-  -n                          Enable notifications
-  -d [zenity]                 Choose a dialog to get passwords
-  -p [pwgen-args]             Specify pwgen arguments
   -h, --help                  Display this help message and exit
+  -n                          Enable notifications
+  -p [pwgen-args]             Specify pwgen arguments
+                              Use Entropy Amplification
   -z                          Don't keep private key cached
 
 Commands:
+  add, new, gen, generate [-a -f -c -p] <pass-name> <password-length>
+                           Generate a new password
+  close                    Remove cached private key
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
-  close                    Remove cached private key
   custom [pass-cmd] [pin-cmd]
                            Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
   ls, list                 List all stored passwords in a tree format
-  add, new, gen, generate [-a -f -c -p] <pass-name> <password-length>
-                           Generate a new password
-  rotate [-f]              Rotate all keys and update master password and PIN
-  rm, remove [-f] <pass-name>
-                           Remove a password entry
   out, output, stdout [-a] <pass-name>
                            Print password to stdout
+  rm, remove [-f] <pass-name>
+                           Remove a password entry
+  rotate [-f]              Rotate all keys and update master password and PIN
   setup                    Initialize keys, directories, and git
   version                  Display the current version number
 
 Examples:
   $0 new -c MyAccount 20
-  $0 clip MyAccount
-  $0 list
-  $0 git status
-  $0 rotate -f
+                     # Create password MyAccount as a 20 long character long password, and immediately copy it to clipboard
+  $0 clip MyAccount  # Copy MyAccount password to clipboard
+  $0 list            # List all available passwords
+  $0 git status      # Run git status in PASS_STORE
+  $0 rotate -f       # Rotate all keys, without confirmation
+  #0 -a setup        # Setup pass using Entropy Amplification
 EOF
 }
 
