@@ -99,7 +99,7 @@ fi
 function global_error() {
   error=$?
   [[ "$error" -ne 0 ]] && {
-    echo "An error occurred!" >&2
+    text "$RED" "Error: An error occurred!" >&2
     exit 1
   }
 }
@@ -108,7 +108,7 @@ function pass_import() {
   local FORCE
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ ! -f "$PASS_PUBKEY" ]; then
-    text "$RED" "Missing public age key!"
+    text "$RED" "Error: Missing public age key!"
     exit 1
   fi
   if [ "$FORCE" = "true" ]; then
