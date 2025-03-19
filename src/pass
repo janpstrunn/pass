@@ -473,15 +473,9 @@ function output_password() {
   STORE=${STORE:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
   get_age_key private
-  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD"
-    global_error
-  else
-    key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD"
-    global_error
-  fi
+  key=$(get_age_key_amp_get pass)
+  age --decrypt --identity <(echo "$key") "$PASSWORD"
+  global_error
 }
 
 function close_password() {
@@ -584,13 +578,8 @@ function clear_clipboard() {
 }
 
 function clip_password() {
-  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
-  else
-    key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
-  fi
+  key=$(get_age_key_amp_get pass)
+  age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
 
   echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
   if [ "$NOTIFY" = "true" ]; then
