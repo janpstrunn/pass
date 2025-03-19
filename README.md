@@ -141,12 +141,12 @@ Examples:
 - [x] Create documentation
 - [ ] Create auto-completion for `bash` and `zsh`
 
-### Helpers
+### Extensions
 
 - [x] Manage OTP passwords using [pass-otp](https://github.com/janpstrunn/pass-otp)
 - [ ] Store passwords in a tomb using `pass-tomb`
-- [ ] Manage Recovery Keys using `pass-recuva`
-- [ ] Easily use `pass` and its helpers using `rofipass`
+- [x] Manage Recovery Keys using ~`pass-recuva`~ [pass-otp](https://github.com/janpstrunn/pass-otp)
+- [ ] Easily use `pass` and its official extensions using `rofipass`
 
 ## Notes
 
