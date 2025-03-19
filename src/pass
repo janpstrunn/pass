@@ -109,6 +109,7 @@ function pass_import() {
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ -z "$PASS_PUBKEY" ]; then
     text "$RED" "Missing public age key!"
+    exit 1
   fi
   if [ "$FORCE" = "true" ]; then
     PASSWORD_STORE_DIR="$HOME/.password-store/"
