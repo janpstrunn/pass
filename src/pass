@@ -48,6 +48,8 @@ Commands:
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
   close                    Remove cached private key
+  custom [pass-cmd] [pin-cmd]
+                           Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
@@ -717,6 +719,7 @@ while [[ "$1" != "" ]]; do
     exit 0
     ;;
   custom-cmd)
+    DIALOG="custom"
     shift # Move past "custom-cmd"
     CUSTOM_CMD_PASSWORD="$1"
     shift # Move past password command
