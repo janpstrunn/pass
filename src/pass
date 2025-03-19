@@ -105,9 +105,18 @@ function global_error() {
 }
 
 function pass_import() {
-  PASSWORD_STORE_DIR=${PASSWORD_STORE_DIR:-$HOME/.password-store/}
+  local FORCE
+  FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
+  if [ -z "$PASS_PUBKEY" ]; then
+    text "$RED" "Missing public age key!"
+  fi
+  if [ "$FORCE" = "true" ]; then
+    PASSWORD_STORE_DIR="$HOME/.password-store/"
+  else
+    PASSWORD_STORE_DIR=${PASSWORD_STORE_DIR:-$HOME/.password-store/}
+  fi
   if [ ! -d "$PASS_STORE" ]; then
-    echo "PASS_STORE not found!"
+    text "$RED" "Error: PASS_STORE not found!"
     exit 1
   fi
   cd "$PASSWORD_STORE_DIR" || exit 1
@@ -124,11 +133,11 @@ function pass_import() {
     val=$?
 
     if [ $val -ne 0 ]; then
-      echo "Error encrypting password: $password_name" >&2
+      text "$RED" "Error encrypting password: $password_name" >&2
       continue
     fi
 
-    echo "Password $password_name encrypted successfully!"
+    text "$GREEN" "Password $password_name encrypted successfully!"
   done
   text "$RED" "Important note: Only the first line have been copied!"
   text "$RED" "If there were multiline passwords, they are not copied."
