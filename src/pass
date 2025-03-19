@@ -461,16 +461,16 @@ function git_passwords() {
 }
 
 function output_password() {
-  local PASSWORD
-  PASSWORD="$PASSWORD_STORE/$name.age"
+  local STORE
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
   get_age_key private
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD"
+    age --decrypt --identity <(echo "$key") "$STORE"
     global_error
   else
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD"
+    age --decrypt --identity <(echo "$key") "$STORE"
     global_error
   fi
 }
@@ -487,12 +487,14 @@ function close_password() {
 }
 
 function fzf_passwords() {
+  local STORE
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
   if ! command -v fzf &>/dev/null; then
     echo "fzf could not be found. Please install it."
     exit 1
   fi
-  if [ -d "$PASSWORD_STORE" ]; then
-    cd "$PASSWORD_STORE" || exit 1
+  if [ -d "$STORE" ]; then
+    cd "$STORE" || exit 1
     if command -v fzf &>/dev/null; then
       name=$(fzf --prompt "Select a password")
       name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
@@ -506,8 +508,10 @@ function fzf_passwords() {
 }
 
 function find_passwords() {
-  if [ -d "$PASSWORD_STORE" ]; then
-    cd "$PASSWORD_STORE" || exit 1
+  local STORE
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  if [ -d "$STORE" ]; then
+    cd "$STORE" || exit 1
     if command -v fd &>/dev/null; then
       fd -t f -i "$name" . | tree --fromfile
     else
@@ -520,11 +524,13 @@ function find_passwords() {
 }
 
 function list_passwords() {
-  if [ -d "$PASSWORD_STORE" ]; then
+  local STORE
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  if [ -d "$STORE" ]; then
     if command -v eza &>/dev/null; then
-      eza -T "$PASSWORD_STORE"
+      eza -T "$STORE"
     else
-      tree "$PASSWORD_STORE"
+      tree "$STORE"
     fi
   else
     text "$RED" "No password store found!"
@@ -533,10 +539,11 @@ function list_passwords() {
 }
 
 function remove_password() {
-  local FORCE
+  local STORE FORCE
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ "$FORCE" = "true" ]; then
-    srm "$PASSWORD_STORE"/"$name".age
+    srm "$STORE"/"$name".age
     echo "Remove $name from store"
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
@@ -546,7 +553,7 @@ function remove_password() {
       no) exit 0 ;;
       esac
     done
-    srm "$PASSWORD_STORE"/"$name".age
+    srm "$STORE"/"$name".age
     echo "Remove $name from store"
   fi
   error_check
@@ -572,7 +579,8 @@ function clear_clipboard() {
 }
 
 function copy_password() {
-  local PASSWORD clipmethod
+  local STORE PASSWORD clipmethod
+  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
   PASSWORD="$PASSWORD_STORE/$name.age"
   clipmethod="$XDG_SESSION_TYPE"
   NOTIFY=${NOTIFY:$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
@@ -589,10 +597,10 @@ function copy_password() {
 
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
+    age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
   else
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
+    age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
   fi
 
   echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
