@@ -15,12 +15,14 @@ It's a CLI tool that tries to make the process of managing passwords, one time p
 - Find files using `find` or `fd`
 - Interactive password selection using `fzf`
 - Import passwords from [passwordstore](https://www.passwordstore.org/)
-- Output passwords to stdout
+- Output passwords to `stdout`
 - Run any `git` command
 - Generate strong passwords using `pwgen`
 - Copy password to clipboard and clear clipboard on specified time
-- Rotate `age` keys and re-encrypt all passwords
+- Run post commands after clipboard clear
 - Use `zenity` to insert passwords
+- Specify a dialog tool to get master password and PIN
+- Rotate `age` keys and re-encrypt all passwords
 - Empower PIN passwords using `argon2` (Entropy Amplification)
 
 ## Requirements
@@ -80,19 +82,23 @@ Pass: Password Manager
 Usage: $0 [options] <command> [arguments]
 
 Options:
-  -a, --amplify [-s] <salt> [-i] <iteration>
+  -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
-  -c, --clip                  Copy password to clipboard after password creation
-  -f, --force                 Bypass confirmation dialogs. May be destructive.
-  -n, --notify                Enable notifications
+  -c                          Copy password to clipboard after password creation
+  -e                          Extra command run post clipboard cleareance
+  -f                          Force. Bypass confirmation dialogs. May be destructive.
+  -n                          Enable notifications
   -d [zenity]                 Choose a dialog to get passwords
   -p [pwgen-args]             Specify pwgen arguments
   -h, --help                  Display this help message and exit
+  -z                          Don't keep private key cached
 
 Commands:
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
   close                    Remove cached private key
+  custom [pass-cmd] [pin-cmd]
+                           Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
