@@ -484,8 +484,10 @@ function output_password() {
   PASSWORD="$STORE/$name.age"
   get_age_key private
   key=$(get_age_key_amp_get pass)
-  age --decrypt --identity <(echo "$key") "$PASSWORD"
-  global_error
+  if [[ "$(basename "$0")" =~ pass$ ]]; then
+    age --decrypt --identity <(echo "$key") "$PASSWORD"
+    global_error
+  fi
 }
 
 function close_password() {
@@ -603,7 +605,7 @@ function clip_password() {
 }
 
 function copy_password() {
-  local STORE PASSWORD clipmethod
+  local STORE PASSWORD
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
   clipmethod="$XDG_SESSION_TYPE"
