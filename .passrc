@@ -1,5 +1,6 @@
 # This a .passrc template
 # This file is not required to use pass
+# Note: Front comments are not allowed, they are used just for explanation purposes
 
 FORCE=false                          # true, to always lift confirmation dialogs
 CLIPBOARD_CLEAR_TIME=5               # number in seconds, sets the time to clear the clipboard after copy
