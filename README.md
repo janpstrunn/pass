@@ -86,12 +86,12 @@ Usage: $0 [options] <command> [arguments]
 Options:
   -a [-s] <salt> [-i] <iteration>
   -c                          Copy password to clipboard after password creation
-  -d [zenity]                 Choose a dialog to get passwords
+  -d <zenity>                 Choose a dialog to get passwords
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
   -n                          Enable notifications
-  -p [pwgen-args]             Specify pwgen arguments
+  -p <pwgen-args>             Specify pwgen arguments
                               Use Entropy Amplification
   -z                          Don't keep private key cached
 
@@ -101,7 +101,7 @@ Commands:
   close                    Remove cached private key
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
-  custom [pass-cmd] [pin-cmd]
+  custom <pass-cmd> <pin-cmd>
                            Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
