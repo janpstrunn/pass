@@ -116,7 +116,8 @@ Commands:
 
 Examples:
   $0 new -c MyAccount 20
-                     # Create password MyAccount as a 20 long character long password, and immediately copy it to clipboard
+                     # Create password MyAccount as a 20 long character long password,
+                     # and immediately copy it to clipboard
   $0 clip MyAccount  # Copy MyAccount password to clipboard
   $0 list            # List all available passwords
   $0 git status      # Run git status in PASS_STORE
