@@ -1,13 +1,13 @@
 <img src="https://git.disroot.org/janpstrunn/images/raw/branch/main/pass.png" align="right" height="100"/>
 <br>
 
-<h1 align="left">Pass</h1>
+# pass: A modern CLI password manager
 
 `pass` is a simple password manager written in shell that tries to replace the [passwordstore](https://www.passwordstore.org/) keeping its core philosophies.
 
-This project has some important differences. `pass` does not uses `gpg` like [passwordstore](https://www.passwordstore.org/), instead it uses `age` for a more modern and simple way to generate password stores.
+This project has some important differences compared to [passwordstore](https://www.passwordstore.org/). `pass` does not uses `gpg` like [passwordstore](https://www.passwordstore.org/), instead it uses `age` for a more modern and simple way to generate password stores.
 
-It's a CLI tool that tries to make the process of managing passwords, one time passwords (2FA) and recovery keys a breeze while keeping yourself secure with good security standards.
+It's a CLI tool that tries to make the process of managing passwords a breeze while keeping yourself secure with good security standards.
 
 ## Features
 
