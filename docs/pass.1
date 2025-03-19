@@ -1,0 +1,132 @@
+.TH pass 1 "March 2025" "2.2.0" "User Commands"
+.SH NAME
+pass \- A modern CLI password manager
+.SH SYNOPSIS
+.B pass
+[OPTIONS] <command> [arguments]
+.SH DESCRIPTION
+pass is a simple password manager written in shell that tries to replace the passwordstore keeping its core philosophies.
+
+This project has some important differences compared to passwordstore. pass does not uses gpg(1) like passwordstore, instead it uses age(1) for a more modern and simple way to generate password stores.
+
+It's a CLI tool that tries to make the process of managing passwords a breeze while keeping yourself secure with good security standards.
+
+.SH OPTIONS
+.TP
+.B -a [-s] <salt> [-i] <iteration>
+Use entropy amplification with optional salt and iteration count.
+.TP
+.B -c
+Copy password to clipboard after password creation.
+.TP
+.B -d [zenity]
+Choose a dialog to get passwords. Only zenity(1) is available for now.
+.TP
+.B -e
+Extra command run post clipboard clearance.
+.TP
+.B -f
+Force. Bypass confirmation dialogs. May be destructive.
+.TP
+.B -h
+Display help message and exit.
+.TP
+.B -n
+Enable notifications.
+.TP
+.B -p [pwgen-args]
+Specify arguments for pwgen.
+.TP
+.B -z
+Don't keep private key cached.
+
+.SH COMMANDS
+.TP
+.B add, new, gen, generate [-a -f -c -p] <pass-name> <password-length>
+Generate a new password with optional arguments for salt, force, clipboard copy, and pwgen(1) options.
+.TP
+.B close
+Remove the cached private key.
+.TP
+.B cp, copy, clip [-a] <pass-name>
+Copy a password to the clipboard.
+.TP
+.B custom [pass-cmd] [pin-cmd]
+Specify a custom dialog to get master password and PIN.
+.TP
+.B find <pass-name>
+Search passwords and display them as a tree.
+.TP
+.B git <git-args>
+Run any git(1) command in the PASS_STORE.
+.TP
+.B help
+Display help message and exit.
+.TP
+.B import
+Import passwords from the password store.
+.TP
+.B ls, list
+List all stored passwords in a tree format.
+.TP
+.B out, output, stdout [-a] <pass-name>
+Print a password to stdout.
+.TP
+.B rm, remove [-f] <pass-name>
+Remove a password entry.
+.TP
+.B rotate [-f]
+Rotate all keys and update the master password and PIN.
+.TP
+.B setup
+Initialize keys, directories, and git(1).
+.TP
+.B version
+Display the current version number.
+
+.SH EXAMPLES
+.TP
+.B pass new -c MyAccount 20
+Create password MyAccount with 20 characters and immediately copy it to clipboard.
+.TP
+.B pass clip MyAccount
+Copy MyAccount password to clipboard.
+.TP
+.B pass list
+List all available passwords.
+.TP
+.B pass git status
+Run git status in the PASS_STORE.
+.TP
+.B pass rotate -f
+Rotate all keys without confirmation.
+.TP
+.B pass -a setup
+Setup pass using entropy amplification using default values.
+.TP
+.B pass -a -s MYSECRETSALT -i 4 setup
+Setup pass using entropy amplification and setting specific salt and iterations.
+
+.SH ENTROPY AMPLIFICATION
+The concept of entropy amplification aims to turn small, easy passwords (e.g., a PIN) into larger, more secure passwords.
+.TP
+This is achieved by using the Argon2 algorithm (see argon2(1)) to hash the input password, applying a salt (default: HOSTNAME) and a number of iterations (default: 2), resulting in a significantly more secure password.
+.TP
+This mechanism serves multiple purposes:
+.TP
+- To generate larger, harder-to-crack passwords from small inputs.
+.TP
+- To avoid storing the private key in plaintext by requiring a PIN to decrypt the cached key.
+.TP
+When setting up a key, if a user provides a custom salt, that salt will always be required to access your passwords. This ensures that even if the cached private key is compromised, it cannot be decrypted without the specific salt and PIN.
+.TP
+The main advantage of this setup is convenience. It allows for enhanced security without needing to store a private key in plaintext, or rely on complex passwords that are hard to remember neither hard to input.
+
+.SH EXIT STATUS
+0 on success, non-zero on failure.
+
+.SH AUTHOR
+Janpstrunn <janpstrunn@disroot.org>
+
+.SH SEE ALSO
+age(1)
