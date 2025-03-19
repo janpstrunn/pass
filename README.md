@@ -75,6 +75,8 @@ mv src/pass "$HOME/.local/bin"
 - `ENTROPY_ITERATION`: Set iterations used by EA
 - `NOTIFY`: Always enable notifications
 - `POST_CLIPBOARD_CLEAR`: Command to be used after clipboard cleareance
+- `PASS_TOMB_DIR`: Path to a tomb. For `pass-tomb`
+- `TOMB_KEY`: Path to a tomb key. For `pass-tomb`
 
 ## Usage
 
