@@ -23,7 +23,7 @@ It's a CLI tool that tries to make the process of managing passwords a breeze wh
 - Use `zenity` to insert passwords
 - Specify a dialog tool to get master password and PIN
 - Rotate `age` keys and re-encrypt all passwords
-- Empower PIN passwords using `argon2` (Entropy Amplification)
+- Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic))
 
 ## Requirements
 
