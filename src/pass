@@ -520,6 +520,7 @@ function fzf_passwords() {
     name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
     if [ -z "$name" ]; then
       text "$RED" "No file selected"
+      exit 1
     fi
   else
     text "$RED" "Error: No password store found!"
@@ -598,7 +599,7 @@ function clear_clipboard() {
 
 function clip_password() {
   key=$(get_age_key_amp_get pass)
-  age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
+  age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
   val=$?
   if [ "$val" -ne 0 ]; then
     text "$RED" "Error: Failed to copy password!"
@@ -744,92 +745,95 @@ function get_pass_args() {
 
   shift $((OPTIND - 1))
 
-  while [[ "$1" != "" ]]; do
-    case "$1" in
-    help | usage)
-      usage
-      exit 0
-      ;;
-    setup)
-      setup
-      exit 0
-      ;;
-    output | out | stdout)
-      shift
-      name=$1
-      if [[ -z "$name" ]]; then
-        fzf_passwords
-      fi
-      output_password
-      exit 0
-      ;;
-    custom-cmd)
-      DIALOG="custom"
-      shift
-      CUSTOM_CMD_PASSWORD="$1"
-      shift
-      CUSTOM_CMD_PIN="$1"
-      shift
-      ;;
-    cp | copy | clip)
-      shift
-      name=$1
-      if [[ -z "$name" ]]; then
-        fzf_passwords
-      fi
-      copy_password
-      exit 0
-      ;;
-    rotate)
-      rotate_keys
-      exit 0
-      ;;
-    add | new | gen | generate)
-      shift
-      name="$1"
-      length=${2:-72}
-      generate_password
-      exit 0
-      ;;
-    ls | list)
-      list_passwords
-      exit 0
-      ;;
-    rm | remove)
-      shift
-      name=$1
-      if [[ -z "$name" ]]; then
-        fzf_passwords
-      fi
-      remove_password "$PASSWORD_STORE" password
-      exit 0
-      ;;
-    git)
-      shift
-      args=$*
-      git_passwords "$args"
-      exit 0
-      ;;
-    find)
-      shift
-      name=$1
-      find_passwords
-      exit 0
-      ;;
-    close)
-      close_password
-      exit 0
-      ;;
-    version)
-      version
-      exit 0
-      ;;
-    import)
-      pass_import
-      exit 0
-      ;;
-    esac
-  done
+  case "$1" in
+  help | usage)
+    usage
+    exit 0
+    ;;
+  setup)
+    setup
+    exit 0
+    ;;
+  output | out | stdout)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    output_password
+    exit 0
+    ;;
+  custom-cmd)
+    DIALOG="custom"
+    shift
+    CUSTOM_CMD_PASSWORD="$1"
+    shift
+    CUSTOM_CMD_PIN="$1"
+    shift
+    ;;
+  cp | copy | clip)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    copy_password
+    exit 0
+    ;;
+  rotate)
+    rotate_keys
+    exit 0
+    ;;
+  add | new | gen | generate)
+    shift
+    name="$1"
+    length=${2:-72}
+    generate_password
+    exit 0
+    ;;
+  ls | list)
+    list_passwords
+    exit 0
+    ;;
+  rm | remove)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    remove_password "$PASSWORD_STORE" password
+    exit 0
+    ;;
+  git)
+    shift
+    args=$*
+    git_passwords "$args"
+    exit 0
+    ;;
+  find)
+    shift
+    name=$1
+    find_passwords
+    exit 0
+    ;;
+  close)
+    close_password
+    exit 0
+    ;;
+  version)
+    version
+    exit 0
+    ;;
+  import)
+    pass_import
+    exit 0
+    ;;
+  *)
+    text "$RED" "Error: Invalid command $1" >&2
+    usage
+    exit 0
+    ;;
+  esac
 }
 
 if [[ "$(basename "$0")" =~ pass$ ]]; then
