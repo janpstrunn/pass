@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.2.0]
+
+### Added
+
+- Option to not keep a private key cached
+- Add option to run commands after clipboard clear
+- Add option to specify a dialog tool to get master password and PIN
+
+### Changed
+
+- Lift hardcode PASS_STORE directory within functions. This allows reusing the function with a different PASS_STORE subdirectory, for example a OTP dedicated subdirectory.
+
+### Removed
+
+- All option long formats are removed
+
 ## [2.1.1]
 
 ### Added
