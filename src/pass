@@ -470,7 +470,7 @@ function git_passwords() {
 
 function output_password() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
   get_age_key private
   key=$(get_age_key_amp_get pass)
@@ -497,7 +497,7 @@ function close_password() {
 
 function fzf_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   if ! command -v fzf &>/dev/null; then
     echo "fzf could not be found. Please install it."
     exit 1
@@ -506,6 +506,9 @@ function fzf_passwords() {
     cd "$STORE" || exit 1
     name=$(fzf --prompt "Select a password: ")
     name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
+    if [ -z "$name" ]; then
+      text "$RED" "No file selected"
+    fi
   else
     text "$RED" "Error: No password store found!"
     text "$BLUE" "Run setup first!"
@@ -514,7 +517,7 @@ function fzf_passwords() {
 
 function find_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   if [ -d "$STORE" ]; then
     cd "$STORE" || exit 1
     if command -v fd &>/dev/null; then
@@ -530,7 +533,7 @@ function find_passwords() {
 
 function list_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   if [ -d "$STORE" ]; then
     if command -v eza &>/dev/null; then
       eza -T "$STORE"
@@ -545,7 +548,7 @@ function list_passwords() {
 
 function remove_password() {
   local STORE FORCE
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ "$FORCE" = "true" ]; then
     srm "$STORE"/"$name".age
@@ -591,7 +594,7 @@ function clip_password() {
 
 function copy_password() {
   local STORE PASSWORD clipmethod
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
   clipmethod="$XDG_SESSION_TYPE"
   NOTIFY=${NOTIFY:$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
@@ -614,7 +617,7 @@ function copy_password() {
 function generate_password() {
   local FORCE PASSWORD PWGEN_OPT STORE
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
-  STORE=${STORE:-"$PASSWORD_STORE"}
+  STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
   CLIP_POST_ACTION=${CLIP_POST_ACTION:-false}
 
@@ -668,7 +671,7 @@ function generate_password() {
   fi
 }
 
-function get_args() {
+function get_pass_args() {
   while getopts ":hnafvezc:d:p:i:s:" opt; do
     case "$opt" in
     a)
