@@ -38,6 +38,7 @@ Options:
   -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
   -c                          Copy password to clipboard after password creation
+  -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -n                          Enable notifications
   -d [zenity]                 Choose a dialog to get passwords
@@ -74,7 +75,7 @@ EOF
 }
 
 function version() {
-  echo "v.2.1.1"
+  echo "v.2.1.2"
 }
 
 function text() {
@@ -481,29 +482,31 @@ function close_password() {
   if [ -f "$TMP_PASS" ]; then
     srm "$TMP_PASS" && text "$GREEN" "Cached private key securely wiped"
     text "$BLUE" "Your secrets are protected behind your master password"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u normal "Your secrets are protected behind your master password"
+    fi
   else
     text "$BLUE" "No cached private key found"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u normal "No cached private key found"
+    fi
   fi
 }
 
 function fzf_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  STORE=${STORE:-"$PASSWORD_STORE"}
   if ! command -v fzf &>/dev/null; then
     echo "fzf could not be found. Please install it."
     exit 1
   fi
   if [ -d "$STORE" ]; then
     cd "$STORE" || exit 1
-    if command -v fzf &>/dev/null; then
-      name=$(fzf --prompt "Select a password")
-      name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
-    else
-      echo "fzf is not installed"
-    fi
+    name=$(fzf --prompt "Select a password: ")
+    name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
   else
-    echo "No password store found!"
-    echo "Run setup first!"
+    text "$RED" "Error: No password store found!"
+    text "$BLUE" "Run setup first!"
   fi
 }
 
@@ -544,7 +547,7 @@ function remove_password() {
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ "$FORCE" = "true" ]; then
     srm "$STORE"/"$name".age
-    echo "Remove $name from store"
+    global_error
   else
     text "$RED" "Are you sure you want to remove $name? (y/N)"
     select choice_continue in "yes" "no"; do
@@ -554,10 +557,10 @@ function remove_password() {
       esac
     done
     srm "$STORE"/"$name".age
-    echo "Remove $name from store"
+    global_error
   fi
-  error_check
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Remove $name from store"
+  text "$RED" "Removed $name from store"
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Removed $name from store"
 }
 
 function clear_clipboard() {
@@ -568,13 +571,9 @@ function clear_clipboard() {
   elif [ "$clipmethod" = "wayland" ]; then
     echo "" | wl-copy
   fi
-  if [ "$CLIPHIST_WIPE" == "true" ]; then
-    if command -v cliphist &>/dev/null; then
-      cliphist wipe
-      exit 1
-    else
-      echo "Cliphist is not installed"
-    fi
+  if [ -n "$EXTRA_CLIPBOARD_CLEAR" ]; then
+    sh -c "$EXTRA_CLIPBOARD_CLEAR"
+    global_error
   fi
 }
 
@@ -667,7 +666,7 @@ function generate_password() {
   fi
 }
 
-while getopts ":hnafvm:r:c:d:p:i:s:" opt; do
+while getopts ":hnafvec:d:p:i:s:" opt; do
   case "$opt" in
   a)
     ENTROPY_AMPLIFICATION=true
@@ -677,6 +676,9 @@ while getopts ":hnafvm:r:c:d:p:i:s:" opt; do
     ;;
   i)
     ENTROPY_ITERATION="$OPTARG"
+    ;;
+  e)
+    EXTRA_CLIPBOARD_CLEAR=$(sed -n 's/^EXTRA_CLIPBOARD_CLEAR=//p' "$PASSRC")
     ;;
   s)
     ENTROPY_SALT="$OPTARG"
@@ -728,11 +730,11 @@ while [[ "$1" != "" ]]; do
     ;;
   custom-cmd)
     DIALOG="custom"
-    shift # Move past "custom-cmd"
+    shift
     CUSTOM_CMD_PASSWORD="$1"
-    shift # Move past password command
+    shift
     CUSTOM_CMD_PIN="$1"
-    shift # Move past PIN command
+    shift
     ;;
   cp | copy | clip)
     shift
