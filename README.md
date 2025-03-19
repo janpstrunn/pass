@@ -118,14 +118,14 @@ Commands:
   version                  Display the current version number
 
 Examples:
-  $0 new -c MyAccount 20
-                     # Create password MyAccount as a 20 long character long password,
-                     # and immediately copy it to clipboard
-  $0 clip MyAccount  # Copy MyAccount password to clipboard
-  $0 list            # List all available passwords
-  $0 git status      # Run git status in PASS_STORE
-  $0 rotate -f       # Rotate all keys, without confirmation
-  #0 -a setup        # Setup pass using Entropy Amplification
+  pass new -c MyAccount 20
+                       # Create password MyAccount as a 20 long character long password,
+                       # and immediately copy it to clipboard
+  pass clip MyAccount  # Copy MyAccount password to clipboard
+  pass list            # List all available passwords
+  pass git status      # Run git status in PASS_STORE
+  pass rotate -f       # Rotate all keys, without confirmation
+  pass -a setup        # Setup pass using Entropy Amplification
 ```
 
 > [!IMPORTANT]
