@@ -23,7 +23,7 @@ It's a CLI tool that tries to make the process of managing passwords a breeze wh
 - Use `zenity` to insert passwords
 - Specify a dialog tool to get master password and PIN
 - Rotate `age` keys and re-encrypt all passwords
-- Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic))
+- Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic#entropy-amplification))
 
 ## Requirements
 
@@ -136,7 +136,7 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [x] Re-encrypt all passwords with new age key
 - [x] Import passwords from passwordstore
 - [x] Complete overhaul on how private keys are managed and temporary stored
-- [ ] Create documentation
+- [x] Create documentation
 - [ ] Create auto-completion for `bash` and `zsh`
 
 ### Helpers
@@ -145,6 +145,10 @@ First time running `pass`, requires to run the `setup` command: `./pass setup`
 - [ ] Store passwords in a tomb using `pass-tomb`
 - [ ] Manage Recovery Keys using `pass-recuva`
 - [ ] Easily use `pass` and its helpers using `rofipass`
+
+## Notes
+
+This script has been only tested in a Linux Machine.
 
 ## License
 
