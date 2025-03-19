@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1-1] 2025-03-19
+
+### Changed
+
+- Only run `output_password` if the filename is `pass`
+- Make `clip_method` a global variable
+
 ## [2.2.1] 2025-03-19
 
 ### Added
