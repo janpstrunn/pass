@@ -1,6 +1,16 @@
 # Changelog
 
-## [2.2.0]
+## [2.2.1] 2025-03-19
+
+### Added
+
+- Option to force import passwords from passwordstore, by force setting PASSWORD_STORE_DIR as `$HOME/.password-store/`
+
+### Fixed
+
+- Proper variable setting to some scriptable functions
+
+## [2.2.0] 2025-03-19
 
 ### Added
 
@@ -16,7 +26,7 @@
 
 - All option long formats are removed
 
-## [2.1.1]
+## [2.1.1] 2025-03-18
 
 ### Added
 
@@ -25,7 +35,7 @@
 
 ### Fixed
 
-## [2.1.0]
+## [2.1.0] 2025-03-18
 
 ### Added
 
@@ -36,7 +46,7 @@
 
 - Key rotation not working properly
 
-## [2.0.0]
+## [2.0.0] 2025-03-18
 
 ### Added
 
@@ -50,7 +60,7 @@
 
 - Editing passwords with an visual editor is deprecated.
 
-## [1.1.1]
+## [1.1.1] 2025-03-17
 
 ### Added
 
