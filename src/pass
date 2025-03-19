@@ -576,8 +576,8 @@ function clear_clipboard() {
   elif [ "$clipmethod" = "wayland" ]; then
     echo "" | wl-copy
   fi
-  if [ -n "$EXTRA_CLIPBOARD_CLEAR" ]; then
-    sh -c "$EXTRA_CLIPBOARD_CLEAR"
+  if [ -n "$POST_CLIPBOARD_CLEAR" ]; then
+    sh -c "$POST_CLIPBOARD_CLEAR"
     global_error
   fi
 }
@@ -683,7 +683,7 @@ while getopts ":hnafvezc:d:p:i:s:" opt; do
     ENTROPY_ITERATION="$OPTARG"
     ;;
   e)
-    EXTRA_CLIPBOARD_CLEAR=$(sed -n 's/^EXTRA_CLIPBOARD_CLEAR=//p' "$PASSRC")
+    POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
     ;;
   s)
     ENTROPY_SALT="$OPTARG"

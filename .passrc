@@ -8,4 +8,4 @@ ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
 ENTROPY_SALT=(10 long character +)   # Salt used by EA
 ENTROPY_ITERATION=2                  # Iterations made by EA
 NOTIFY=true                          # Some operations will notify automatically
-EXTRA_CLIPBOARD_CLEAR=cliphist wipe  # Run cliphist wipe after clipboard cleareance
+POST_CLIPBOARD_CLEAR=cliphist wipe  # Run cliphist wipe after clipboard cleareance

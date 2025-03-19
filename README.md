@@ -74,7 +74,7 @@ mv src/pass "$HOME/.local/bin"
 - `ENTROPY_SALT`: Set a salt to be used by EA
 - `ENTROPY_ITERATION`: Set iterations used by EA
 - `NOTIFY`: Always enable notifications
-- `EXTRA_CLIPBOARD_CLEAR`: Command to be used after clipboard cleareance
+- `POST_CLIPBOARD_CLEAR`: Command to be used after clipboard cleareance
 
 ## Usage
 
