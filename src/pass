@@ -4,8 +4,6 @@ PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
 
 PASSWORD_STORE="$PASS_STORE/passwords/"
-OTP_STORE="$PASS_STORE/otp/"
-RECUVA_STORE="$PASS_STORE/recovery/"
 KEY_STORE="$PASS_STORE/keys/"
 MASTER_KEY="$KEY_STORE/master.age"
 PASS_KEY="$KEY_STORE/pass.age"
@@ -37,11 +35,11 @@ Pass: Password Manager
 Usage: $0 [options] <command> [arguments]
 
 Options:
-  -a, --amplify [-s] <salt> [-i] <iteration>
+  -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
-  -c, --clip                  Copy password to clipboard after password creation
-  -f, --force                 Bypass confirmation dialogs. May be destructive.
-  -n, --notify                Enable notifications
+  -c                          Copy password to clipboard after password creation
+  -f                          Force. Bypass confirmation dialogs. May be destructive.
+  -n                          Enable notifications
   -d [zenity]                 Choose a dialog to get passwords
   -p [pwgen-args]             Specify pwgen arguments
   -h, --help                  Display this help message and exit
@@ -134,8 +132,11 @@ function pass_import() {
 }
 
 function rotate_keys() {
-  local TMP_MAIN TMP_PASS TMP_PASSPUBKEY
+  local TMP_MAIN TMP_PASS TMP_PASSPUBKEY OTP_STORE RECUVA_STORE
   local new_pubkey
+  OTP_STORE="$PASS_STORE/otp/"
+  RECUVA_STORE="$PASS_STORE/recovery/"
+
   TMP_MAIN="$KEY_STORE/main-temp.age"
   TMP_PASS_ROTATE="$KEY_STORE/pass-temp.age"
   TMP_PASSPUBKEY="$KEY_STORE/pass-temp.pubkey"
@@ -359,6 +360,43 @@ EOF
   text "$GREEN" "Setup Complete"
 }
 
+function get_age_input() {
+  local INPUT
+  INPUT=$1
+  if [ "$INPUT" == "master" ]; then
+    case "$DIALOG" in
+    zenity)
+      passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text)
+      get_age_key_amp_get master
+      ;;
+    custom)
+      passphrase=$(sh -c "$CUSTOM_CMD_PASSWORD")
+      get_age_key_amp_get master
+      ;;
+    *)
+      read -s passphrase
+      get_age_key_amp_get master
+      ;;
+    esac
+  elif [ "$INPUT" == "pin" ]; then
+    case "$DIALOG" in
+    zenity)
+      if ! command -v zenity &>/dev/null; then
+        echo "zenity could not be found. Please install it."
+        exit 1
+      fi
+      pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
+      ;;
+    custom)
+      pin=$(sh -c "$CUSTOM_CMD_PIN")
+      ;;
+    *)
+      read -s pin
+      ;;
+    esac
+  fi
+}
+
 function get_age_key() {
   local KEY TMP_PASS
   ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
@@ -373,38 +411,15 @@ function get_age_key() {
       touch "$TMP_PASS"
       chmod 600 "$TMP_PASS"
       text "$BLUE" "Enter your master password:"
-      case "$DIALOG" in
-      zenity)
-        if ! command -v zenity &>/dev/null; then
-          echo "zenity could not be found. Please install it."
-          exit 1
-        fi
-        passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text)
-        get_age_key_amp_get master
-        ;;
-      *)
-        age --decrypt "$MASTER_KEY" >"$TMP_PASS"
-        ;;
-      esac
+      get_age_input master
     fi
     global_error
+    text "$BLUE" "Enter your PIN password:"
     if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-      text "$BLUE" "Enter your PIN password:"
-      case "$DIALOG" in
-      zenity)
-        if ! command -v zenity &>/dev/null; then
-          echo "zenity could not be found. Please install it."
-          exit 1
-        fi
-        pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
-        ;;
-      *)
-        read -s pin
-        ;;
-      esac
+      get_age_input pin
       pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
     else
-      key=$(age --decrypt "$TMP_PASS")
+      get_age_input pin
     fi
     global_error
     return 0
@@ -452,6 +467,7 @@ function output_password() {
     age --decrypt --identity <(echo "$key") "$PASSWORD"
     global_error
   else
+    key=$(get_age_key_amp_get pass)
     age --decrypt --identity <(echo "$key") "$PASSWORD"
     global_error
   fi
@@ -573,6 +589,7 @@ function copy_password() {
     key=$(get_age_key_amp_get pass)
     age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
   else
+    key=$(get_age_key_amp_get pass)
     age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
   fi
 
@@ -619,7 +636,7 @@ function generate_password() {
     text "$BLUE" "This password already exists!"
     if [ "$FORCE" = "true" ]; then
       srm "$PASSWORD"
-      text "$RED" "Removed $name from store"
+      text "$RED" "Overwritting $name"
     else
       exit 1
     fi
@@ -640,7 +657,7 @@ function generate_password() {
   fi
 }
 
-while getopts ":hnafc:d:p:i:s:" opt; do
+while getopts ":hnafvm:r:c:d:p:i:s:" opt; do
   case "$opt" in
   a)
     ENTROPY_AMPLIFICATION=true
@@ -659,10 +676,16 @@ while getopts ":hnafc:d:p:i:s:" opt; do
     exit 0
     ;;
   f) FORCE=true ;;
-  d) DIALOG="$OPTARG" ;;
+  d)
+    DIALOG="$OPTARG"
+    ;;
   p) PWGEN_OPT="$OPTARG" ;;
   c)
     CLIP_POST_ACTION=true
+    ;;
+  v)
+    version
+    exit 0
     ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
@@ -674,95 +697,88 @@ done
 
 shift $((OPTIND - 1))
 
-case "$1" in
--h | --help | usage)
-  usage
-  exit 0
-  ;;
-setup)
-  setup
-  exit 0
-  ;;
---clip)
-  shift
-  CLIP_POST_ACTION=true
-  ;;
---force)
-  shift
-  FORCE=true
-  ;;
---amplify)
-  shift
-  ENTROPY_AMPLIFICATION=true
-  ;;
---notify)
-  shift
-  NOTIFY=true
-  ;;
-output | out | stdout)
-  shift
-  name=$1
-  if [[ -z "$name" ]]; then
-    fzf_passwords
-  fi
-  output_password
-  exit 0
-  ;;
-cp | copy | clip)
-  shift
-  name=$1
-  if [[ -z "$name" ]]; then
-    fzf_passwords
-  fi
-  copy_password
-  exit 0
-  ;;
-rotate)
-  rotate_keys
-  exit 0
-  ;;
-add | new | gen | generate)
-  shift
-  name="$1"
-  length=${2:-72}
-  generate_password
-  exit 0
-  ;;
-ls | list)
-  list_passwords
-  exit 0
-  ;;
-rm | remove)
-  shift
-  name=$1
-  if [[ -z "$name" ]]; then
-    fzf_passwords
-  fi
-  remove_password
-  exit 0
-  ;;
-git)
-  shift
-  args=$*
-  git_passwords "$args"
-  exit 0
-  ;;
-find)
-  shift
-  name=$1
-  find_passwords
-  exit 0
-  ;;
-close)
-  close_password
-  exit 0
-  ;;
---version | version)
-  version
-  exit 0
-  ;;
-import)
-  pass_import
-  exit 0
-  ;;
-esac
+while [[ "$1" != "" ]]; do
+  case "$1" in
+  help | usage)
+    usage
+    exit 0
+    ;;
+  setup)
+    setup
+    exit 0
+    ;;
+  output | out | stdout)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    output_password
+    exit 0
+    ;;
+  custom-cmd)
+    shift # Move past "custom-cmd"
+    CUSTOM_CMD_PASSWORD="$1"
+    shift # Move past password command
+    CUSTOM_CMD_PIN="$1"
+    shift # Move past PIN command
+    ;;
+  cp | copy | clip)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    copy_password
+    exit 0
+    ;;
+  rotate)
+    rotate_keys
+    exit 0
+    ;;
+  add | new | gen | generate)
+    shift
+    name="$1"
+    length=${2:-72}
+    generate_password
+    exit 0
+    ;;
+  ls | list)
+    list_passwords
+    exit 0
+    ;;
+  rm | remove)
+    shift
+    name=$1
+    if [[ -z "$name" ]]; then
+      fzf_passwords
+    fi
+    remove_password
+    exit 0
+    ;;
+  git)
+    shift
+    args=$*
+    git_passwords "$args"
+    exit 0
+    ;;
+  find)
+    shift
+    name=$1
+    find_passwords
+    exit 0
+    ;;
+  close)
+    close_password
+    exit 0
+    ;;
+  version)
+    version
+    exit 0
+    ;;
+  import)
+    pass_import
+    exit 0
+    ;;
+  esac
+done
