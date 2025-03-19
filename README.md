@@ -144,7 +144,7 @@ Examples:
 ### Extensions
 
 - [x] Manage OTP passwords using [pass-otp](https://github.com/janpstrunn/pass-otp)
-- [ ] Store passwords in a tomb using `pass-tomb`
+- [x] Store passwords in a tomb using [pass-tomb](https://github.com/janpstrunn/pass-tomb)
 - [x] Manage Recovery Keys using ~`pass-recuva`~ [pass-otp](https://github.com/janpstrunn/pass-otp)
 - [ ] Easily use `pass` and its official extensions using `rofipass`
 
