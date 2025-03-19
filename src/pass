@@ -497,12 +497,12 @@ function close_password() {
     srm "$TMP_PASS" && text "$GREEN" "Cached private key securely wiped"
     text "$BLUE" "Your secrets are protected behind your master password"
     if [ "$NOTIFY" = "true" ]; then
-      notify-send -u normal "Your secrets are protected behind your master password"
+      notify-send -u normal "Your secrets are protected behind your master password" --expire-time=3000
     fi
   else
     text "$BLUE" "No cached private key found"
     if [ "$NOTIFY" = "true" ]; then
-      notify-send -u normal "No cached private key found"
+      notify-send -u normal "No cached private key found" --expire-time=3000
     fi
   fi
 }
@@ -559,8 +559,9 @@ function list_passwords() {
 }
 
 function remove_password() {
-  local STORE FORCE
+  local STORE FORCE PASS_OPERATION
   STORE=${1:-"$PASSWORD_STORE"}
+  PASS_OPERATION="$2"
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ "$FORCE" = "true" ]; then
     srm "$STORE"/"$name".age
@@ -578,6 +579,9 @@ function remove_password() {
   fi
   text "$RED" "Removed $name from store"
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Removed $name from store"
+  if [ "$NOTIFY" = "true" ]; then
+    notify-send -u normal "Pass: Delete" "Deleted $PASS_OPERATION $name"
+  fi
 }
 
 function clear_clipboard() {
@@ -595,10 +599,17 @@ function clear_clipboard() {
 function clip_password() {
   key=$(get_age_key_amp_get pass)
   age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
-
+  val=$?
+  if [ "$val" -ne 0 ]; then
+    text "$RED" "Error: Failed to copy password!"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u normal "Pass: Error" "Failed to copy password!"
+    fi
+    exit 1
+  fi
   echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
   if [ "$NOTIFY" = "true" ]; then
-    notify-send -u normal "Pass: Copy" "Clearing the password in $CLIPBOARD_CLEAR_TIME seconds..."
+    notify-send -u normal "Pass: Copy" "Clearing the password in $CLIPBOARD_CLEAR_TIME seconds..." --expire-time=3000
   fi
   sleep "$CLIPBOARD_CLEAR_TIME"s
   clear_clipboard
@@ -676,8 +687,11 @@ function generate_password() {
   pwgen "$length" "$PWGEN_OPT" | age --encrypt --recipient="$key" --output="$PASSWORD" # create passwords from pass.age pubkey
   generate_error
 
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password for $name"
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password $name"
   chmod 600 "$PASSWORD"
+  if [ "$NOTIFY" = "true" ]; then
+    notify-send -u normal "Pass: Add" "Added password $name"
+  fi
   if [ "$CLIP_POST_ACTION" = "true" ]; then
     copy_password
   fi
@@ -787,7 +801,7 @@ function get_pass_args() {
       if [[ -z "$name" ]]; then
         fzf_passwords
       fi
-      remove_password
+      remove_password "$PASSWORD_STORE" password
       exit 0
       ;;
     git)
