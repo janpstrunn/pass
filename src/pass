@@ -13,6 +13,8 @@ ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
 ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
 
+NOTIFY=${NOTIFY:-$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
+
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
@@ -379,6 +381,7 @@ EOF
 
 function get_age_input() {
   local INPUT
+  DIALOG=${DIALOG:-$(sed -n 's/^DIALOG=//p' "$PASSRC")}
   INPUT=$1
   if [ "$INPUT" == "master" ]; then
     case "$DIALOG" in
@@ -387,6 +390,7 @@ function get_age_input() {
       get_age_key_amp_get master
       ;;
     custom)
+      CUSTOM_CMD_PASSWORD=${CUSTOM_CMD_PASSWORD:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
       passphrase=$(sh -c "$CUSTOM_CMD_PASSWORD")
       get_age_key_amp_get master
       ;;
@@ -405,6 +409,7 @@ function get_age_input() {
       pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
       ;;
     custom)
+      CUSTOM_CMD_PIN=${CUSTOM_CMD_PIN:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
       pin=$(sh -c "$CUSTOM_CMD_PIN")
       ;;
     *)
@@ -446,6 +451,7 @@ function get_age_key() {
 function get_age_key_amp_get() {
   local TMP_PASS MODE
   TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
+  KEEP_PASS=${KEEP_PASS:-$(sed -n 's/^KEEP_PASS=//p' "$PASSRC")}
   MODE="$1"
 
   if [ "$MODE" == "pass" ]; then
@@ -643,7 +649,7 @@ function generate_password() {
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
-  CLIP_POST_ACTION=${CLIP_POST_ACTION:-false}
+  CLIP_POST_ACTION=${CLIP_POST_ACTION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
 
   if [ -z "$name" ]; then
     text "$RED" "Error: No name provided for your password"

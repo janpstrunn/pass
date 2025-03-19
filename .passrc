@@ -11,3 +11,13 @@ NOTIFY=true                          # Some operations will notify automatically
 POST_CLIPBOARD_CLEAR=cliphist wipe   # Run cliphist wipe after clipboard cleareance
 PASS_TOMB_DIR=$HOME/.pass.tomb       # Directory to a tomb: For pass-tomb
 TOMB_KEY=$HOME/pass.tomb.key         # Path to tomb.key: For pass-tomb
+KEEP_PASS=false                      # Never keep private key cached
+CLIP_POST_ACTION=false               # Always clip after password generation or edit
+
+# Dialog Configuration
+DIALOG=none                          # Always set dialog to a certain mode
+                                     # Available: zenity, custom or none
+CUSTOM_CMD_PASSWORD=zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text
+                                     # Custom dialog to get master password
+CUSTOM_CMD_PIN=zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text
+                                     # Custom dialog to get PIN
