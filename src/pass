@@ -79,7 +79,7 @@ EOF
 }
 
 function version() {
-  echo "v.2.2.0"
+  echo "v.2.2.2"
 }
 
 function text() {
