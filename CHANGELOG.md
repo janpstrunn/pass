@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.0] 2025-03-19
+
+### Added
+
+- Add notifications to password removal and generation
+- Run `usage` when no command is ran
+- Add `KEEP_PASS`, `CLIP_POST_ACTION`, `EXHUME`, `GPG_ID` `DIALOG` and its custom commands to `.passrc`
+
+### Fixed
+
+- When `fzf` returns no value, it exits
+
+### Changed
+
+- Notifications are shorter
+
 ## [2.2.1-1] 2025-03-19
 
 ### Changed
