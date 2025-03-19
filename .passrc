@@ -1,7 +1,6 @@
 # This a .passrc template
 # This file is not required to use pass
 
-# Default Values
 FORCE=false                          # true, to always lift confirmation dialogs
 CLIPBOARD_CLEAR_TIME=5               # number in seconds, sets the time to clear the clipboard after copy
 ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
@@ -9,10 +8,14 @@ ENTROPY_SALT=(10 long character +)   # Salt used by EA
 ENTROPY_ITERATION=2                  # Iterations made by EA
 NOTIFY=true                          # Some operations will notify automatically
 POST_CLIPBOARD_CLEAR=cliphist wipe   # Run cliphist wipe after clipboard cleareance
-PASS_TOMB_DIR=$HOME/.pass.tomb       # Directory to a tomb: For pass-tomb
-TOMB_KEY=$HOME/pass.tomb.key         # Path to tomb.key: For pass-tomb
 KEEP_PASS=false                      # Never keep private key cached
 CLIP_POST_ACTION=false               # Always clip after password generation or edit
+
+# For pass-tomb
+EXHUME=true                          # Always enable exhuming
+GPG_ID=true                          # Always enable gpg key
+PASS_TOMB_DIR=$HOME/.pass.tomb       # Directory to a tomb
+TOMB_KEY=$HOME/pass.tomb.key         # Path to tomb.key
 
 # Dialog Configuration
 DIALOG=none                          # Always set dialog to a certain mode
