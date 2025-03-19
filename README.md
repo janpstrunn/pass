@@ -9,6 +9,8 @@ This project has some important differences compared to [passwordstore](https://
 
 It's a CLI tool that tries to make the process of managing passwords a breeze while keeping yourself secure with good security standards.
 
+To understand the encryption logic behind the `age` backend, see [Encryption Logic](https://github.com/janpstrunn/pass/wiki/Encryption-Logic).
+
 ## Features
 
 - List all files in a tree format using `tree` or `eza`
@@ -28,19 +30,19 @@ It's a CLI tool that tries to make the process of managing passwords a breeze wh
 ## Requirements
 
 - `age`
-- `git`
-- `srm`
 - `bash`, `zsh`, `fish` or any other shell
+- `expect`
+- `git`
 - `pwgen`
+- `srm`
 - `xclip` or `wl-clipboard`
 
 ### Optional Requirements
 
-- `fzf`
+- `argon2`
 - `eza`
 - `fd`
-- `expect`
-- `argon2`
+- `fzf`
 - `zenity`
 
 ## Installation
@@ -54,7 +56,7 @@ mv src/pass "$HOME/.local/bin"
 
 ## Configuration
 
-Environment Variables:
+**Environment Variables:**
 
 - `PASS_STORE`:
   - Password Directory.
@@ -64,7 +66,7 @@ Environment Variables:
   - Configuration file.
   - Default to `"$HOME/.passrc`
 
-Configuration File. Refer to [.passrc](https://github.com/janpstrunn/pass/blob/main/.passrc)
+**Configuration File. Refer to [.passrc](https://github.com/janpstrunn/pass/blob/main/.passrc)**
 
 - `FORCE`: Always ignore confirmation dialogs
 - `CLIPHIST_WIPE`: Clears the `cliphist` database
@@ -125,7 +127,8 @@ Examples:
   #0 -a setup        # Setup pass using Entropy Amplification
 ```
 
-First time running `pass`, requires to run the `setup` command: `./pass setup`
+> [!IMPORTANT]
+> First time running `pass`, requires to run the `setup` command: `./pass setup`
 
 ## Plans
 
