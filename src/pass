@@ -15,16 +15,6 @@ ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
 ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
 
-if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-  if ! command -v argon2 &>/dev/null; then
-    echo "argon2 could not be found. Please install it."
-    exit 1
-  elif ! command -v expect &>/dev/null; then
-    echo "expect could not be found. Please install it."
-    exit 1
-  fi
-fi
-
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
@@ -84,7 +74,7 @@ EOF
 }
 
 function version() {
-  echo "v.2.0.0"
+  echo "v.2.1.1"
 }
 
 function text() {
@@ -149,6 +139,10 @@ function rotate_keys() {
   TMP_MAIN="$KEY_STORE/main-temp.age"
   TMP_PASS_ROTATE="$KEY_STORE/pass-temp.age"
   TMP_PASSPUBKEY="$KEY_STORE/pass-temp.pubkey"
+
+  ENTROPY_SALT=${ENTROPY_SALT:-$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")}
+  ENTROPY_ITERATION=${ENTROPY_ITERATION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
+  ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
 
   if [ "$FORCE" = "true" ]; then
     # Backup files
@@ -218,14 +212,13 @@ function key_encryption() {
   text "$BLUE" "You will need to insert this PIN everytime you work with pass"
 
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    if ! command -v expect &>/dev/null; then
-      text "$RED" "Error: expect could not be found. Please install it."
-      setup_error wipe
-      exit 1
-    fi
     if [ -z "$ENTROPY_ITERATION" ] || [ -z "$ENTROPY_SALT" ]; then
       text "$BLUE" "Note: You may configure your special SALT and ITERATION in your .passrc"
       text "$BLUE" "Falling back to default values"
+    fi
+    if [ -z "$ENTROPY_SALT" ]; then
+      text "$BLUE" "Entropy Salt not set, falling back to hostname"
+      ${ENTROPY_SALT:-$(hostname)}
     fi
     if [[ $(wc -m <<<"$ENTROPY_SALT") -le 10 ]]; then
       text "$RED" "Error: ENTROPY_SALT must be longer than 10 characters." >&2
@@ -244,7 +237,7 @@ function key_encryption() {
         text "$RED" "Passwords does not match"
       fi
     done
-    password=$(echo "$password" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
+    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
 
     expect <<EOF
 spawn age --passphrase -o "$PASS_KEY" "$SETUP_PASS"
@@ -270,12 +263,6 @@ EOF
 }
 
 function setup_error {
-  if [ "$1" == "wipe" ]; then
-    for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
-      [ -f "$file" ] && srm "$file"
-    done
-    exit 1
-  fi
   error=$?
   [[ "$error" -ne 0 ]] && {
     echo "An error occurred!" >&2
@@ -295,6 +282,16 @@ function setup() {
   ENTROPY_SALT=${ENTROPY_SALT:-$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")}
   ENTROPY_ITERATION=${ENTROPY_ITERATION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
   ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
+
+  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+    if ! command -v argon2 &>/dev/null; then
+      echo "argon2 could not be found. Please install it."
+      exit 1
+    elif ! command -v expect &>/dev/null; then
+      echo "expect could not be found. Please install it."
+      exit 1
+    fi
+  fi
 
   if [ -f "$MASTER_KEY" ] || [ -f "$PASS_KEY" ] || [ -f "$PASS_PUBKEY" ]; then
     text "$RED" "You already have a previous setup of pass."
