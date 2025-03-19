@@ -470,15 +470,16 @@ function git_passwords() {
 
 function output_password() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  STORE=${STORE:-"$PASSWORD_STORE"}
+  PASSWORD="$STORE/$name.age"
   get_age_key private
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$STORE"
+    age --decrypt --identity <(echo "$key") "$PASSWORD"
     global_error
   else
     key=$(get_age_key_amp_get pass)
-    age --decrypt --identity <(echo "$key") "$STORE"
+    age --decrypt --identity <(echo "$key") "$PASSWORD"
     global_error
   fi
 }
@@ -519,7 +520,7 @@ function fzf_passwords() {
 
 function find_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  STORE=${STORE:-"$PASSWORD_STORE"}
   if [ -d "$STORE" ]; then
     cd "$STORE" || exit 1
     if command -v fd &>/dev/null; then
@@ -535,7 +536,7 @@ function find_passwords() {
 
 function list_passwords() {
   local STORE
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  STORE=${STORE:-"$PASSWORD_STORE"}
   if [ -d "$STORE" ]; then
     if command -v eza &>/dev/null; then
       eza -T "$STORE"
@@ -550,7 +551,7 @@ function list_passwords() {
 
 function remove_password() {
   local STORE FORCE
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
+  STORE=${STORE:-"$PASSWORD_STORE"}
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ "$FORCE" = "true" ]; then
     srm "$STORE"/"$name".age
@@ -582,23 +583,7 @@ function clear_clipboard() {
   fi
 }
 
-function copy_password() {
-  local STORE PASSWORD clipmethod
-  STORE=${STORE:-"$PASSWORD_STORE/$name.age"}
-  PASSWORD="$PASSWORD_STORE/$name.age"
-  clipmethod="$XDG_SESSION_TYPE"
-  NOTIFY=${NOTIFY:$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
-  CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
-  CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
-
-  get_age_key private
-
-  if [ "$clipmethod" = "x11" ]; then
-    clip_command="xclip -sel clip"
-  elif [ "$clipmethod" = "wayland" ]; then
-    clip_command="wl-copy"
-  fi
-
+function clip_password() {
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     key=$(get_age_key_amp_get pass)
     age --decrypt --identity <(echo "$key") "$STORE" | $clip_command
@@ -615,10 +600,33 @@ function copy_password() {
   clear_clipboard
 }
 
+function copy_password() {
+  local STORE PASSWORD clipmethod
+  STORE=${STORE:-"$PASSWORD_STORE"}
+  PASSWORD="$STORE/$name.age"
+  clipmethod="$XDG_SESSION_TYPE"
+  NOTIFY=${NOTIFY:$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
+  CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
+  CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
+
+  get_age_key private
+
+  if [ "$clipmethod" = "x11" ]; then
+    clip_command="xclip -sel clip"
+  elif [ "$clipmethod" = "wayland" ]; then
+    clip_command="wl-copy"
+  fi
+
+  if [[ "$(basename "$0")" =~ pass$ ]]; then
+    clip_password
+  fi
+}
+
 function generate_password() {
-  local FORCE PASSWORD PWGEN_OPT
+  local FORCE PASSWORD PWGEN_OPT STORE
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
-  PASSWORD="$PASSWORD_STORE/$name.age"
+  STORE=${STORE:-"$PASSWORD_STORE"}
+  PASSWORD="$STORE/$name.age"
   CLIP_POST_ACTION=${CLIP_POST_ACTION:-false}
 
   if [ -z "$name" ]; then
@@ -671,135 +679,141 @@ function generate_password() {
   fi
 }
 
-while getopts ":hnafvezc:d:p:i:s:" opt; do
-  case "$opt" in
-  a)
-    ENTROPY_AMPLIFICATION=true
-    ;;
-  n)
-    NOTIFY=true
-    ;;
-  i)
-    ENTROPY_ITERATION="$OPTARG"
-    ;;
-  e)
-    POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
-    ;;
-  s)
-    ENTROPY_SALT="$OPTARG"
-    ;;
-  h)
-    usage
-    exit 0
-    ;;
-  f) FORCE=true ;;
-  d)
-    DIALOG="$OPTARG"
-    ;;
-  p) PWGEN_OPT="$OPTARG" ;;
-  c)
-    CLIP_POST_ACTION=true
-    ;;
-  v)
-    version
-    exit 0
-    ;;
-  z)
-    KEEP_PASS=false
-    ;;
-  ?)
-    echo "Error: Invalid option '-$OPTARG'" >&2
-    usage
-    exit 0
-    ;;
-  esac
-done
+function get_args() {
+  while getopts ":hnafvezc:d:p:i:s:" opt; do
+    case "$opt" in
+    a)
+      ENTROPY_AMPLIFICATION=true
+      ;;
+    n)
+      NOTIFY=true
+      ;;
+    i)
+      ENTROPY_ITERATION="$OPTARG"
+      ;;
+    e)
+      POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
+      ;;
+    s)
+      ENTROPY_SALT="$OPTARG"
+      ;;
+    h)
+      usage
+      exit 0
+      ;;
+    f) FORCE=true ;;
+    d)
+      DIALOG="$OPTARG"
+      ;;
+    p) PWGEN_OPT="$OPTARG" ;;
+    c)
+      CLIP_POST_ACTION=true
+      ;;
+    v)
+      version
+      exit 0
+      ;;
+    z)
+      KEEP_PASS=false
+      ;;
+    ?)
+      echo "Error: Invalid option '-$OPTARG'" >&2
+      usage
+      exit 0
+      ;;
+    esac
+  done
 
-shift $((OPTIND - 1))
+  shift $((OPTIND - 1))
 
-while [[ "$1" != "" ]]; do
-  case "$1" in
-  help | usage)
-    usage
-    exit 0
-    ;;
-  setup)
-    setup
-    exit 0
-    ;;
-  output | out | stdout)
-    shift
-    name=$1
-    if [[ -z "$name" ]]; then
-      fzf_passwords
-    fi
-    output_password
-    exit 0
-    ;;
-  custom-cmd)
-    DIALOG="custom"
-    shift
-    CUSTOM_CMD_PASSWORD="$1"
-    shift
-    CUSTOM_CMD_PIN="$1"
-    shift
-    ;;
-  cp | copy | clip)
-    shift
-    name=$1
-    if [[ -z "$name" ]]; then
-      fzf_passwords
-    fi
-    copy_password
-    exit 0
-    ;;
-  rotate)
-    rotate_keys
-    exit 0
-    ;;
-  add | new | gen | generate)
-    shift
-    name="$1"
-    length=${2:-72}
-    generate_password
-    exit 0
-    ;;
-  ls | list)
-    list_passwords
-    exit 0
-    ;;
-  rm | remove)
-    shift
-    name=$1
-    if [[ -z "$name" ]]; then
-      fzf_passwords
-    fi
-    remove_password
-    exit 0
-    ;;
-  git)
-    shift
-    args=$*
-    git_passwords "$args"
-    exit 0
-    ;;
-  find)
-    shift
-    name=$1
-    find_passwords
-    exit 0
-    ;;
-  close)
-    close_password
-    exit 0
-    ;;
-  version)
-    version
-    exit 0
-    ;;
-  import)
-    pass_import
-    exit 0
-    ;;
-  esac
-done
+  while [[ "$1" != "" ]]; do
+    case "$1" in
+    help | usage)
+      usage
+      exit 0
+      ;;
+    setup)
+      setup
+      exit 0
+      ;;
+    output | out | stdout)
+      shift
+      name=$1
+      if [[ -z "$name" ]]; then
+        fzf_passwords
+      fi
+      output_password
+      exit 0
+      ;;
+    custom-cmd)
+      DIALOG="custom"
+      shift
+      CUSTOM_CMD_PASSWORD="$1"
+      shift
+      CUSTOM_CMD_PIN="$1"
+      shift
+      ;;
+    cp | copy | clip)
+      shift
+      name=$1
+      if [[ -z "$name" ]]; then
+        fzf_passwords
+      fi
+      copy_password
+      exit 0
+      ;;
+    rotate)
+      rotate_keys
+      exit 0
+      ;;
+    add | new | gen | generate)
+      shift
+      name="$1"
+      length=${2:-72}
+      generate_password
+      exit 0
+      ;;
+    ls | list)
+      list_passwords
+      exit 0
+      ;;
+    rm | remove)
+      shift
+      name=$1
+      if [[ -z "$name" ]]; then
+        fzf_passwords
+      fi
+      remove_password
+      exit 0
+      ;;
+    git)
+      shift
+      args=$*
+      git_passwords "$args"
+      exit 0
+      ;;
+    find)
+      shift
+      name=$1
+      find_passwords
+      exit 0
+      ;;
+    close)
+      close_password
+      exit 0
+      ;;
+    version)
+      version
+      exit 0
+      ;;
+    import)
+      pass_import
+      exit 0
+      ;;
+    esac
+  done
+}
+
+if [[ "$(basename "$0")" =~ pass$ ]]; then
+  get_pass_args "$@"
+fi
