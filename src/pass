@@ -44,6 +44,7 @@ Options:
   -d [zenity]                 Choose a dialog to get passwords
   -p [pwgen-args]             Specify pwgen arguments
   -h, --help                  Display this help message and exit
+  -z                          Don't keep private key cached
 
 Commands:
   cp, copy, clip [-a] <pass-name>
@@ -445,6 +446,9 @@ EOF
     )
     key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
     echo -n "$key" | tr -d '[:space:]'
+    if [ -n "$KEEP_PASS" ]; then
+      srm "$TMP_PASS"
+    fi
   fi
 
   if [ "$MODE" == "master" ]; then
@@ -666,7 +670,7 @@ function generate_password() {
   fi
 }
 
-while getopts ":hnafvec:d:p:i:s:" opt; do
+while getopts ":hnafvezc:d:p:i:s:" opt; do
   case "$opt" in
   a)
     ENTROPY_AMPLIFICATION=true
@@ -698,6 +702,9 @@ while getopts ":hnafvec:d:p:i:s:" opt; do
   v)
     version
     exit 0
+    ;;
+  z)
+    KEEP_PASS=false
     ;;
   ?)
     echo "Error: Invalid option '-$OPTARG'" >&2
