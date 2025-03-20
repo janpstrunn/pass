@@ -100,6 +100,7 @@ Commands:
   git <git-args>           Run any Git command in PASS_STORE
   import                   Import passwords from password store
   ls, list                 List all stored passwords in a tree format
+  open                     Cache the private key
   out, output, stdout [-a] <pass-name>
                            Print password to stdout
   rm, remove [-f] <pass-name>
