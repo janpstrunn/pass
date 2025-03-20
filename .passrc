@@ -13,7 +13,7 @@ CLIP_POST_ACTION=false               # Always clip after password generation or 
 ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
 ENTROPY_SALT=(10 long character +)   # Salt used by EA
 ENTROPY_ITERATION=2                  # Iterations used by EA
-ENTROPY_PARALELLISM=2                # Parallel process used by EA
+ENTROPY_PARALLELISM=2                # Parallel process used by EA
 
 # For pass-tomb
 EXHUME=true                          # Always enable exhuming

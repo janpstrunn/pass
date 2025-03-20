@@ -12,7 +12,7 @@ PASS_PUBKEY="$KEY_STORE/pass.pubkey"
 ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
 ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
-ENTROPY_PARALELLISM=$(sed -n 's/^ENTROPY_PARALELLISM=//p' "$PASSRC")
+ENTROPY_PARALLELISM=$(sed -n 's/^ENTROPY_PARALLELISM=//p' "$PASSRC")
 
 NOTIFY=${NOTIFY:-$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
 
@@ -278,7 +278,7 @@ function key_encryption() {
         text "$RED" "Passwords does not match"
       fi
     done
-    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALELLISM:-2}" | awk '/^Hash:/ {print $2}')
+    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
 
     expect <<EOF
 spawn age --passphrase -o "$PASS_KEY" "$SETUP_PASS"
@@ -463,7 +463,7 @@ function get_age_key() {
     global_error
     if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
       get_age_input pin
-      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALELLISM:-2}" | awk '/^Hash:/ {print $2}')
+      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
     else
       get_age_input pin
     fi
@@ -770,7 +770,7 @@ function get_pass_args() {
       POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
       ;;
     l)
-      ENTROPY_PARALELLISM="$OPTARG"
+      ENTROPY_PARALLELISM="$OPTARG"
       ;;
     s)
       ENTROPY_SALT="$OPTARG"
