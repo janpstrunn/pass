@@ -1,0 +1,66 @@
+#compdef pass
+
+_pass_list() {
+  local passwords
+  passwords=($(find "$PASS_STORE/passwords/" -type f -not -path "*/.git/*" 2>/dev/null | awk -F "$PASS_STORE/passwords/" '{print $2}' | sed 's/\.age$//'))
+  _describe 'stored passwords' passwords
+}
+
+_pass_commands() {
+  local -a commands
+  commands=(
+    "add:Generate a new password"
+    "new:Alias for add"
+    "gen:Alias for add"
+    "generate:Alias for add"
+    "close:Remove cached private key"
+    "cp:Copy password to clipboard"
+    "copy:Alias for cp"
+    "clip:Alias for cp"
+    "custom:Specify a custom dialog"
+    "help:Display help message"
+    "find:Search passwords and display as a tree"
+    "git:Run a git command in PASS_STORE"
+    "import:Import passwords from password store"
+    "ls:List all stored passwords in a tree format"
+    "list:Alias for ls"
+    "out:Print password to stdout"
+    "output:Alias for out"
+    "stdout:Alias for out"
+    "rm:Remove a password entry"
+    "remove:Alias for rm"
+    "rotate:Rotate all keys and update master password and PIN"
+    "setup:Initialize keys, directories, and git"
+    "version:Display the current version number"
+  )
+  _describe -t commands 'command' commands "$@"
+}
+
+_arguments \
+  '(-)-[Show available options]' \
+  '(-h)'-h'[Display help message]' \
+  '(-a)'-a'[Enable Entropy Amplification]' \
+  '(-i)'-i'[Define iterations for Entropy Amplification]:iterations:' \
+  '(-s)'-s'[Define salt for Entropy Amplification]:salt: ' \
+  '(-c)'-c'[Copy password to clipboard after password generation or removal]' \
+  '(-d)'-d'[Choose a dialog]:dialog:' \
+  '(-e)'-e'[Run extra command post clipboard clearance]' \
+  '(-f)'-f'[Force, bypass confirmation dialogs]' \
+  '(-n)'-n'[Enable notifications]' \
+  '(-p)'-p'[Specify pwgen arguments]:pwgen args:' \
+  '(-z)'-z'[Do not keep private key cached]' \
+  '1:command:->command' \
+  '*::arguments:->args'
+
+case $state in
+command)
+  _pass_commands
+  ;;
+args)
+  case $words[1] in
+  cp | copy | clip | out | output | stdout | rm | remove)
+    _pass_list
+    ;;
+  esac
+  ;;
+esac
