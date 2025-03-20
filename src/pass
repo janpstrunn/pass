@@ -152,10 +152,11 @@ function pass_import() {
 
     text "$GREEN" "Password $password_name encrypted successfully!"
   done
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Imported passwords from passwordstore"
+
   text "$RED" "Important note: Only the first line have been copied!"
   text "$RED" "If there were multiline passwords, they are not copied."
   text "$RED" "For OTP keys, use pass-otp import"
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Imported passwords from passwordstore"
 
   find "$PASS_STORE" -type f -exec chmod 600 {} \;
 }
