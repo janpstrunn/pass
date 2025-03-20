@@ -415,7 +415,7 @@ function get_age_input() {
       get_age_key_amp_get master
       ;;
     *)
-      read -s passphrase
+      read -s -p "Enter your master password:" passphrase
       get_age_key_amp_get master
       ;;
     esac
@@ -433,7 +433,7 @@ function get_age_input() {
       pin=$(sh -c "$CUSTOM_CMD_PIN")
       ;;
     *)
-      read -s pin
+      read -s -p "Enter your PIN password: " pin
       ;;
     esac
   fi
@@ -452,11 +452,9 @@ function get_age_key() {
     if [ ! -f "$TMP_PASS" ]; then
       touch "$TMP_PASS"
       chmod 600 "$TMP_PASS"
-      text "$BLUE" "Enter your master password:"
       get_age_input master
     fi
     global_error
-    text "$BLUE" "Enter your PIN password:"
     if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
       get_age_input pin
       pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
