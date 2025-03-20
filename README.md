@@ -114,7 +114,7 @@ Commands:
   rm, remove [-f] <pass-name>
                            Remove a password entry
   rotate [-f]              Rotate all keys and update master password and PIN
-  setup                    Initialize keys, directories, and git
+  setup [-a]               Initialize keys, directories, and git
   version                  Display the current version number
 
 Examples:
