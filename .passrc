@@ -4,13 +4,16 @@
 
 FORCE=false                          # true, to always lift confirmation dialogs
 CLIPBOARD_CLEAR_TIME=5               # number in seconds, sets the time to clear the clipboard after copy
-ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
-ENTROPY_SALT=(10 long character +)   # Salt used by EA
-ENTROPY_ITERATION=2                  # Iterations made by EA
 NOTIFY=true                          # Some operations will notify automatically
 POST_CLIPBOARD_CLEAR=cliphist wipe   # Run cliphist wipe after clipboard cleareance
 KEEP_PASS=false                      # Never keep private key cached
 CLIP_POST_ACTION=false               # Always clip after password generation or edit
+
+# Entropy Amplification
+ENTROPY_AMPLIFICATION=false          # Use Entropy Amplification by default
+ENTROPY_SALT=(10 long character +)   # Salt used by EA
+ENTROPY_ITERATION=2                  # Iterations used by EA
+ENTROPY_PARALELLISM=2                # Parallel process used by EA
 
 # For pass-tomb
 EXHUME=true                          # Always enable exhuming
