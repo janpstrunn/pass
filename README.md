@@ -84,7 +84,8 @@ Options:
   -h, --help                  Display this help message and exit
   -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
-  -p <pwgen-args>             Specify pwgen arguments
+  -p <pin>                    Antecipate PIN
+  -o <pwgen-args>             Specify pwgen arguments
   -s <salt>                   Define salt for Entropy Amplification
   -z                          Don't keep private key cached
 
@@ -147,6 +148,8 @@ git -C "$PASS_STORE" revert --no-edit $(pass git log --grep="google" --format="%
 # Perhaps you want to initialize your system and immediately put in your master password
 # You can set this command to run when your system is loaded
 pass -d zenity open
+# Or if you don't want to be requested a PIN at all, you can even do something like this
+mygooglepass=$(pass -p myverystrongpin output google)
 ```
 
 ## Plans
