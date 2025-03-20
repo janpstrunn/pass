@@ -132,13 +132,13 @@ Examples:
 
 ## Importing from passwordstore
 
-For those who what to import passwords from passwordstore, I do recommend to do run this `pass` command out of the `$PATH` and run the following command:
+For those who what to import passwords from passwordstore, you can simply run the following command:
 
 ```bash
-./pass -f import
+./pass import
 ```
 
-Since both are named `pass`, it may conflict and not properly import your passwords.
+If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f` flag to set it to default
 
 ## Plans
 
