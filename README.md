@@ -130,6 +130,16 @@ Examples:
 > [!IMPORTANT]
 > First time running `pass`, requires to run the `setup` command: `./pass setup`
 
+## Importing from passwordstore
+
+For those who what to import passwords from passwordstore, I do recommend to do run this `pass` command out of the `$PATH` and run the following command:
+
+```bash
+./pass -f import
+```
+
+Since both are named `pass`, it may conflict and not properly import your passwords.
+
 ## Plans
 
 ### This repository
