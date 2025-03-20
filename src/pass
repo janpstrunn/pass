@@ -44,7 +44,7 @@ Usage: $0 [options] <command> [arguments]
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
-  -l                          Define paralellism for Entropy Amplification
+  -l <parallels>              Define paralellism for Entropy Amplification
   -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
   -p <pin>                    Antecipate PIN
