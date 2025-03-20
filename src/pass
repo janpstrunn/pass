@@ -43,9 +43,10 @@ Usage: $0 [options] <command> [arguments]
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
-  -i <iteration>               Define iterations for Entropy Amplification
+  -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
-  -p <pwgen-args>             Specify pwgen arguments
+  -p <pin>                    Antecipate PIN
+  -o <pwgen-args>             Specify pwgen arguments
   -s <salt>                   Define salt for Entropy Amplification
   -z                          Don't keep private key cached
 
@@ -421,22 +422,24 @@ function get_age_input() {
       ;;
     esac
   elif [ "$INPUT" == "pin" ]; then
-    case "$DIALOG" in
-    zenity)
-      if ! command -v zenity &>/dev/null; then
-        echo "zenity could not be found. Please install it."
-        exit 1
-      fi
-      pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
-      ;;
-    custom)
-      CUSTOM_CMD_PIN=${CUSTOM_CMD_PIN:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
-      pin=$(sh -c "$CUSTOM_CMD_PIN")
-      ;;
-    *)
-      read -s -p "Enter your PIN password: " pin
-      ;;
-    esac
+    if [ -z "$pin" ]; then
+      case "$DIALOG" in
+      zenity)
+        if ! command -v zenity &>/dev/null; then
+          echo "zenity could not be found. Please install it."
+          exit 1
+        fi
+        pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
+        ;;
+      custom)
+        CUSTOM_CMD_PIN=${CUSTOM_CMD_PIN:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
+        pin=$(sh -c "$CUSTOM_CMD_PIN")
+        ;;
+      *)
+        read -s -p "Enter your PIN password: " pin
+        ;;
+      esac
+    fi
   fi
 }
 
@@ -750,7 +753,7 @@ function generate_password() {
 }
 
 function get_pass_args() {
-  while getopts ":hnafvezc:d:p:i:s:" opt; do
+  while getopts ":hnafvezc:d:p:o:i:s:" opt; do
     case "$opt" in
     a)
       ENTROPY_AMPLIFICATION=true
@@ -775,7 +778,10 @@ function get_pass_args() {
     d)
       DIALOG="$OPTARG"
       ;;
-    p) PWGEN_OPT="$OPTARG" ;;
+    p)
+      pin="$OPTARG"
+      ;;
+    o) PWGEN_OPT="$OPTARG" ;;
     c)
       CLIP_POST_ACTION=true
       ;;
