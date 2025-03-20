@@ -26,7 +26,7 @@ To understand the encryption logic behind the `age` backend, see [Encryption Log
 - Specify a dialog tool to get master password and PIN
 - Rotate `age` keys and re-encrypt all passwords
 - Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic#entropy-amplification))
-- Scriptable
+- Highly customizable and scriptable
 
 ## Requirements
 
@@ -170,13 +170,14 @@ pass -d zenity open
 
 ## Known Issues
 
-- Hoykeys
+- **Hoykeys**
   - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
-- Password Prompt
+- **Password Prompt**
   - An inconvenient issue still to be addressed: Inserting the wrong password will mostly require `pass close` to be executed, and then try again.
-- PasswordStore
-  - Having both `pass` from this repository and the passwordstore installed may cause conflicts, specially when trying to import passwordstore passwords, because both receive the same name.
-  - Solution: Keep `pass` out of `$PATH` and then import
+- **Password Store**
+  - Having both `pass` from this repository and the `passwordstore` installed may cause conflicts, because both receive the same name.
+  - Solution 1: Keep `pass` out of `$PATH`
+  - Solution 2: Uninstall `passwordstore`
 
 ## Notes
 
