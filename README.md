@@ -48,10 +48,7 @@ To understand the encryption logic behind the `age` backend, see [Encryption Log
 ## Installation
 
 ```
-git clone https://github.com/janpstrunn/pass
-cd pass
-chmod 700 src/pass
-mv src/pass "$HOME/.local/bin"
+curl -sSL https://github.com/user/pass/raw/main/install.sh | bash
 ```
 
 ## Configuration
