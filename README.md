@@ -173,7 +173,10 @@ pass -d zenity open
 - Hoykeys
   - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
 - Password Prompt
-  - An inconveniente issue still to be addressed: Inserting the wrong password will mostly require `pass close` to be executed, and then try again.
+  - An inconvenient issue still to be addressed: Inserting the wrong password will mostly require `pass close` to be executed, and then try again.
+- PasswordStore
+  - Having both `pass` from this repository and the passwordstore installed may cause conflicts, specially when trying to import passwordstore passwords, because both receive the same name.
+  - Solution: Keep `pass` out of `$PATH` and then import
 
 ## Notes
 
