@@ -1,4 +1,4 @@
-.TH pass 1 "March 2025" "2.2.0" "User Commands"
+.TH pass 1 "March 2025" "2.3.1" "User Commands"
 .SH NAME
 pass \- A modern CLI password manager
 .SH SYNOPSIS
@@ -31,11 +31,17 @@ Force. Bypass confirmation dialogs. May be destructive.
 .B -h
 Display help message and exit.
 .TP
+.B -i <iteration>
+Define iterations for entropy amplification.
+.TP
 .B -n
 Enable notifications.
 .TP
 .B -p [pwgen-args]
 Specify arguments for pwgen.
+.TP
+.B -s <salt>
+Define salt for entropy amplification.
 .TP
 .B -z
 Don't keep private key cached.
@@ -78,7 +84,7 @@ Remove a password entry.
 .B rotate [-f]
 Rotate all keys and update the master password and PIN.
 .TP
-.B setup
+.B setup [-a]
 Initialize keys, directories, and git(1).
 .TP
 .B version

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.3.1] 2025-03-20
+
+### Added
+
+- Installation script
+- Notifications to all error messages
+- Autocompletion for bash and zsh
+
+### Fixed
+
+- Incorrect Entropy Amplification usage in help menu
+
 ## [2.3.0] 2025-03-19
 
 ### Added
