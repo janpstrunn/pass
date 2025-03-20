@@ -74,7 +74,6 @@ pass: A modern CLI password manager
 
 Usage: $0 [options] <command> [arguments]
 
-Options:
   -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
   -c                          Copy password to clipboard after password creation
@@ -82,6 +81,7 @@ Options:
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
+  -l                          Define paralellism for Entropy Amplification
   -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
   -p <pin>                    Antecipate PIN
@@ -107,7 +107,7 @@ Commands:
   rm, remove [-f] <pass-name>
                            Remove a password entry
   rotate [-f]              Rotate all keys and update master password and PIN
-  setup [-a]               Initialize keys, directories, and git
+  setup                    Initialize keys, directories, and git
   version                  Display the current version number
 
 Examples:
