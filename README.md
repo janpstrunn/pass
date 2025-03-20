@@ -143,7 +143,7 @@ Examples:
 - [x] Import passwords from passwordstore
 - [x] Complete overhaul on how private keys are managed and temporary stored
 - [x] Create documentation
-- [ ] Create auto-completion for `bash` and `zsh`
+- [x] Create auto-completion for `bash` and `zsh`
 
 ### Extensions
 
