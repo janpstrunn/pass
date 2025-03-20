@@ -103,6 +103,9 @@ function global_error() {
   error=$?
   [[ "$error" -ne 0 ]] && {
     text "$RED" "Error: An error occurred!" >&2
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
+    fi
     exit 1
   }
 }
@@ -112,6 +115,9 @@ function pass_import() {
   FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   if [ ! -f "$PASS_PUBKEY" ]; then
     text "$RED" "Error: Missing public age key!"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "Missing public age key!" --expire-time=5000
+    fi
     exit 1
   fi
   if [ "$FORCE" = "true" ]; then
@@ -121,6 +127,9 @@ function pass_import() {
   fi
   if [ ! -d "$PASS_STORE" ]; then
     text "$RED" "Error: PASS_STORE not found!"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
+    fi
     exit 1
   fi
   cd "$PASSWORD_STORE_DIR" || exit 1
@@ -180,7 +189,10 @@ function rotate_keys() {
     cp -r "$PASS_STORE" "$HOME/.pass.bak" && text "$BLUE" "A backup files have been create at \$HOME/.pass.bak"
   fi
   if [ ! -d "$PASSWORD_STORE" ]; then
-    text "$RED" "Error: Password Store does not exist!"
+    text "$RED" "Error: PASS_STORE not found!"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
+    fi
     exit 1
   fi
 
@@ -243,6 +255,9 @@ function key_encryption() {
     fi
     if [[ $(wc -m <<<"$ENTROPY_SALT") -le 10 ]]; then
       text "$RED" "Error: ENTROPY_SALT must be longer than 10 characters." >&2
+      if [ "$NOTIFY" = "true" ]; then
+        notify-send -u critical "Pass: Error" "ENTROPY_SALT must be longer than 10 characters!" --expire-time=5000
+      fi
       exit 1
     fi
     while true; do
@@ -290,6 +305,9 @@ function setup_error {
     for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
       [ -f "$file" ] && srm "$file"
     done
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
+    fi
     exit 1
   }
 }
@@ -464,6 +482,14 @@ send "$pin\r"
 expect eof
 EOF
     )
+    val=$?
+    if [ "$val" -ne 0 ]; then
+      text "$RED" "Error: Failed to unlock the private key!"
+      if [ "$NOTIFY" = "true" ]; then
+        notify-send -u critical "Pass: Error" "Failed to unlock the private key!" --expire-time=5000
+      fi
+      exit 1
+    fi
     key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
     echo -n "$key" | tr -d '[:space:]'
     if [ -n "$KEEP_PASS" ]; then
@@ -504,12 +530,12 @@ function close_password() {
     srm "$TMP_PASS" && text "$GREEN" "Cached private key securely wiped"
     text "$BLUE" "Your secrets are protected behind your master password"
     if [ "$NOTIFY" = "true" ]; then
-      notify-send -u normal "Your secrets are protected behind your master password" --expire-time=3000
+      notify-send -u normal "Pass: Close" "Your secrets are protected behind your master password" --expire-time=3500
     fi
   else
     text "$BLUE" "No cached private key found"
     if [ "$NOTIFY" = "true" ]; then
-      notify-send -u normal "No cached private key found" --expire-time=3000
+      notify-send -u low "Pass: Close" "No cached private key found" --expire-time=3500
     fi
   fi
 }
@@ -530,7 +556,10 @@ function fzf_passwords() {
       exit 1
     fi
   else
-    text "$RED" "Error: No password store found!"
+    text "$RED" "Error: PASS_STORE not found!"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
+    fi
     text "$BLUE" "Run setup first!"
   fi
 }
@@ -588,7 +617,7 @@ function remove_password() {
   text "$RED" "Removed $name from store"
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Removed $name from store"
   if [ "$NOTIFY" = "true" ]; then
-    notify-send -u normal "Pass: Delete" "Deleted $PASS_OPERATION $name"
+    notify-send -u normal "Pass: Delete" "Deleted $PASS_OPERATION $name" --expire-time=3500
   fi
 }
 
@@ -605,19 +634,21 @@ function clear_clipboard() {
 }
 
 function clip_password() {
+  local password
   key=$(get_age_key_amp_get pass)
-  age --decrypt --identity <(echo "$key") "$PASSWORD" | $clip_command
+  password=$(age --decrypt --identity <(echo "$key") "$PASSWORD")
   val=$?
   if [ "$val" -ne 0 ]; then
     text "$RED" "Error: Failed to copy password!"
     if [ "$NOTIFY" = "true" ]; then
-      notify-send -u normal "Pass: Error" "Failed to copy password!"
+      notify-send -u critical "Pass: Error" "Failed to copy password!" --expire-time=5000
     fi
     exit 1
   fi
+  echo "$password" | $clip_command
   echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
   if [ "$NOTIFY" = "true" ]; then
-    notify-send -u normal "Pass: Copy" "Clearing the password in $CLIPBOARD_CLEAR_TIME seconds..." --expire-time=3000
+    notify-send -u normal "Pass: Copy" "Clearing the password in $CLIPBOARD_CLEAR_TIME seconds..." --expire-time=3500
   fi
   sleep "$CLIPBOARD_CLEAR_TIME"s
   clear_clipboard
@@ -654,6 +685,9 @@ function generate_password() {
 
   if [ -z "$name" ]; then
     text "$RED" "Error: No name provided for your password"
+    if [ "$NOTIFY" = "true" ]; then
+      notify-send -u critical "Pass: Error" "No name provided for your password!" --expire-time=5000
+    fi
     exit 1
   fi
 
@@ -668,6 +702,9 @@ function generate_password() {
       echo "An error occurred!" >&2
       if [ -f "$PASSWORD" ]; then
         srm "$PASSWORD"
+      fi
+      if [ "$NOTIFY" = "true" ]; then
+        notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
       fi
       exit 1
     }
@@ -698,7 +735,7 @@ function generate_password() {
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password $name"
   chmod 600 "$PASSWORD"
   if [ "$NOTIFY" = "true" ]; then
-    notify-send -u normal "Pass: Add" "Added password $name"
+    notify-send -u normal "Pass: Add" "Added password $name" --expire-time=3500
   fi
   if [ "$CLIP_POST_ACTION" = "true" ]; then
     copy_password
