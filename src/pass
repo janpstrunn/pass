@@ -492,7 +492,7 @@ EOF
     fi
     key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
     echo -n "$key" | tr -d '[:space:]'
-    if [ -n "$KEEP_PASS" ]; then
+    if [ "$KEEP_PASS" = "true" ]; then
       srm "$TMP_PASS"
     fi
   fi
@@ -777,7 +777,7 @@ function get_pass_args() {
       exit 0
       ;;
     z)
-      KEEP_PASS=false
+      KEEP_PASS=true
       ;;
     ?)
       echo "Error: Invalid option '-$OPTARG'" >&2
