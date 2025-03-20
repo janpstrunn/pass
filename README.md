@@ -26,6 +26,7 @@ To understand the encryption logic behind the `age` backend, see [Encryption Log
 - Specify a dialog tool to get master password and PIN
 - Rotate `age` keys and re-encrypt all passwords
 - Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic#entropy-amplification))
+- Scriptable
 
 ## Requirements
 
@@ -36,6 +37,7 @@ To understand the encryption logic behind the `age` backend, see [Encryption Log
 - `pwgen`
 - `srm`
 - `xclip` or `wl-clipboard`
+- `tree`
 
 ### Optional Requirements
 
@@ -64,16 +66,6 @@ curl -sSL https://github.com/janpstrunn/pass/raw/main/install.sh | bash
   - Default to `"$HOME/.passrc`
 
 **Configuration File. Refer to [.passrc](https://github.com/janpstrunn/pass/blob/main/.passrc)**
-
-- `FORCE`: Always ignore confirmation dialogs
-- `CLIPBOARD_CLEAR_TIME`: Time in seconds to clear the clipboard
-- `ENTROPY_AMPLIFICATION`: Always use Entropy Amplification (EA)
-- `ENTROPY_SALT`: Set a salt to be used by EA
-- `ENTROPY_ITERATION`: Set iterations used by EA
-- `NOTIFY`: Always enable notifications
-- `POST_CLIPBOARD_CLEAR`: Command to be used after clipboard cleareance
-- `PASS_TOMB_DIR`: Path to a tomb. For `pass-tomb`
-- `TOMB_KEY`: Path to a tomb key. For `pass-tomb`
 
 ## Usage
 
@@ -140,6 +132,15 @@ For those who what to import passwords from passwordstore, you can simply run th
 
 If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f` flag to set it to default
 
+## Scripting
+
+`pass` aims to be as much customizable as possible and scriptable to allow users to best adjust it to their workflows. Here are some examples how you can use `pass` in your scripts:
+
+```bash
+# This will take the password from pass and use it to unlock a gocryptfs vault
+pass output dev/usb1 | gocryptfs /path/to/gocryptfs-vault /path/to/mount
+```
+
 ## Plans
 
 ### This repository
@@ -158,6 +159,11 @@ If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f
 - [x] Store passwords in a tomb using [pass-tomb](https://github.com/janpstrunn/pass-tomb)
 - [x] Manage Recovery Keys using ~`pass-recuva`~ [pass-otp](https://github.com/janpstrunn/pass-otp)
 - [x] Easily use `pass` and its official extensions using [pass-rofi](https://github.com/janpstrunn/pass-rofi)
+
+## Known Issues
+
+- Hoykeys
+  - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
 
 ## Notes
 
