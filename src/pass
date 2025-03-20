@@ -12,6 +12,7 @@ PASS_PUBKEY="$KEY_STORE/pass.pubkey"
 ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
 ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
 ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
+ENTROPY_PARALELLISM=$(sed -n 's/^ENTROPY_PARALELLISM=//p' "$PASSRC")
 
 NOTIFY=${NOTIFY:-$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
 
@@ -43,6 +44,7 @@ Usage: $0 [options] <command> [arguments]
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
+  -l                          Define paralellism for Entropy Amplification
   -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
   -p <pin>                    Antecipate PIN
@@ -276,7 +278,7 @@ function key_encryption() {
         text "$RED" "Passwords does not match"
       fi
     done
-    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
+    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALELLISM:-2}" | awk '/^Hash:/ {print $2}')
 
     expect <<EOF
 spawn age --passphrase -o "$PASS_KEY" "$SETUP_PASS"
@@ -461,7 +463,7 @@ function get_age_key() {
     global_error
     if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
       get_age_input pin
-      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p 2 | awk '/^Hash:/ {print $2}')
+      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALELLISM:-2}" | awk '/^Hash:/ {print $2}')
     else
       get_age_input pin
     fi
@@ -753,7 +755,7 @@ function generate_password() {
 }
 
 function get_pass_args() {
-  while getopts ":hnafvezc:d:p:o:i:s:" opt; do
+  while getopts ":hnafvezl:c:d:p:o:i:s:" opt; do
     case "$opt" in
     a)
       ENTROPY_AMPLIFICATION=true
@@ -766,6 +768,9 @@ function get_pass_args() {
       ;;
     e)
       POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
+      ;;
+    l)
+      ENTROPY_PARALELLISM="$OPTARG"
       ;;
     s)
       ENTROPY_SALT="$OPTARG"
