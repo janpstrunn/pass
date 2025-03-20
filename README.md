@@ -87,14 +87,16 @@ Usage: $0 [options] <command> [arguments]
 
 Options:
   -a [-s] <salt> [-i] <iteration>
+                              Use Entropy Amplification
   -c                          Copy password to clipboard after password creation
   -d <zenity>                 Choose a dialog to get passwords
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
+  -i <iteration>               Define iterations for Entropy Amplification
   -n                          Enable notifications
   -p <pwgen-args>             Specify pwgen arguments
-                              Use Entropy Amplification
+  -s <salt>                   Define salt for Entropy Amplification
   -z                          Don't keep private key cached
 
 Commands:
