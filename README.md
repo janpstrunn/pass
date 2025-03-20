@@ -82,7 +82,7 @@ Options:
   -e                          Extra command run post clipboard cleareance
   -f                          Force. Bypass confirmation dialogs. May be destructive.
   -h, --help                  Display this help message and exit
-  -i <iteration>               Define iterations for Entropy Amplification
+  -i <iteration>              Define iterations for Entropy Amplification
   -n                          Enable notifications
   -p <pwgen-args>             Specify pwgen arguments
   -s <salt>                   Define salt for Entropy Amplification
@@ -144,6 +144,9 @@ pass output dev/usb1 | gocryptfs /path/to/gocryptfs-vault /path/to/mount
 pass -d none output mypassword
 # Guess you have JUST overwritten a password called google, and you want to revert it
 git -C "$PASS_STORE" revert --no-edit $(pass git log --grep="google" --format="%H" -n 1)
+# Perhaps you want to initialize your system and immediately put in your master password
+# You can set this command to run when your system is loaded
+pass -d zenity open
 ```
 
 ## Plans
@@ -169,6 +172,8 @@ git -C "$PASS_STORE" revert --no-edit $(pass git log --grep="google" --format="%
 
 - Hoykeys
   - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
+- Password Prompt
+  - An inconveniente issue still to be addressed: Inserting the wrong password will mostly require `pass close` to be executed, and then try again.
 
 ## Notes
 
