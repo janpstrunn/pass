@@ -48,7 +48,7 @@ To understand the encryption logic behind the `age` backend, see [Encryption Log
 ## Installation
 
 ```
-curl -sSL https://github.com/user/pass/raw/main/install.sh | bash
+curl -sSL https://github.com/janpstrunn/pass/raw/main/install.sh | bash
 ```
 
 ## Configuration
