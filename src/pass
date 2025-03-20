@@ -510,6 +510,13 @@ function git_passwords() {
   git -C "$PASS_STORE" "$@"
 }
 
+function open_master() {
+  local STORE
+  STORE=${1:-"$PASSWORD_STORE"}
+  PASSWORD="$STORE/$name.age"
+  get_age_key private
+}
+
 function output_password() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
@@ -849,8 +856,8 @@ function get_pass_args() {
     ;;
   git)
     shift
-    args=$*
-    git_passwords "$args"
+    args=("$@")
+    git_passwords "${args[@]}"
     exit 0
     ;;
   find)
@@ -858,6 +865,10 @@ function get_pass_args() {
     name=$1
     find_passwords
     exit 0
+    ;;
+  open)
+    shift
+    open_master
     ;;
   close)
     close_password
