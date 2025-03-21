@@ -132,7 +132,7 @@ For those who what to import passwords from passwordstore, you can simply run th
 ./pass import
 ```
 
-If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f` flag to set it to default
+If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f` flag to set it to default, where the default is: `$HOME/.password-store/`
 
 ## Scripting
 
@@ -144,7 +144,7 @@ pass output dev/usb1 | gocryptfs /path/to/gocryptfs-vault /path/to/mount
 # If you set a DIALOG in .passrc and you don't want to use it in a specific script. Use:
 pass -d none output mypassword
 # Guess you have JUST overwritten a password called google, and you want to revert it
-git -C "$PASS_STORE" revert --no-edit $(pass git log --grep="google" --format="%H" -n 1)
+pass git revert --no-edit $(pass git log --grep="google" --format="%H" -n 1)
 # Perhaps you want to initialize your system and immediately put in your master password
 # You can set this command to run when your system is loaded
 pass -d zenity open
