@@ -75,7 +75,7 @@ Commands:
   close                    Remove cached private key
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
-  custom <pass-cmd> <pin-cmd>
+  custom, custom-cmd <pass-cmd> <pin-cmd>
                            Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
@@ -177,7 +177,7 @@ function pass_import() {
   find . -type f -name "*.gpg" | while IFS= read -r password_file; do
     password_name=$(sed 's|^.\(.*\).gpg$|\1|' <<<"$password_file")
     password_dir=$(sed 's|^./\(.*\)/[^/]*\.gpg$|\1/|' <<<"$password_file")
-    password=$(gpg --decrypt "$password_name" | head -n 1)
+    password=$(gpg --decrypt "$password_file" 2>/dev/null | head -n 1)
 
     if [ "$(awk -F '/' '{print $1}' <<<"$password_dir")" != "." ]; then
       mkdir -p "$PASSWORD_STORE/$password_dir" || handle_error 11 "Failed to make $password_dir directory"
@@ -578,7 +578,7 @@ function copy_password() {
 }
 
 function generate_password() {
-  local FORCE PASSWORD PWGEN_OPT STORE
+  local PASSWORD PWGEN_OPT STORE
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
 
@@ -687,6 +687,9 @@ function get_age_input() {
 }
 
 function get_age_pass_expect() {
+  if [ -z "$pin" ]; then
+    get_age_input pin
+  fi
   key=$(
     expect <<EOF | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '[:space:]' | sed 's/%*$//'
 spawn age --decrypt "$CACHED_PRIVATE_KEY"
@@ -793,7 +796,7 @@ function get_pass_args() {
     output_password
     exit 0
     ;;
-  custom-cmd)
+  custom | custom-cmd)
     DIALOG="custom"
     shift
     CUSTOM_CMD_PASSWORD="$1"
@@ -862,8 +865,13 @@ function get_pass_args() {
     pass_import
     exit 0
     ;;
-  *)
+  "")
     list_passwords
+    exit 0
+    ;;
+  *)
+    text "$RED" "Error: Invalid command $1" >&2
+    usage_otp
     exit 0
     ;;
   esac
