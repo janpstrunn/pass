@@ -103,7 +103,7 @@ EOF
 }
 
 function version() {
-  echo "v.2.4.0"
+  echo "v.2.4.0-1"
 }
 
 cleanup() {

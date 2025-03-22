@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0-1] Hotfix 2025-03-22
+
+### Fixed
+
+- PIN not being request in any command
+- Missing commands to set dialog commands
+
 ## [2.4.0] 2025-03-22
 
 ### Added
@@ -44,7 +51,7 @@
 
 - Notifications are shorter
 
-## [2.2.1-1] 2025-03-19
+## [2.2.1-1] Hotfix 2025-03-19
 
 ### Changed
 
