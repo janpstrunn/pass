@@ -24,6 +24,8 @@ KEY_STORE="$PASS_STORE/keys/"
 MASTER_KEY="$KEY_STORE/master.age"
 PASS_PUBKEY="$KEY_STORE/pass.pubkey"
 
+CACHED_PRIVATE_KEY=${CACHED_PRIVATE_KEY:-/run/user/$(id -u)/pass-tmp.age}
+
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
@@ -44,7 +46,11 @@ check_command age git srm pwgen expect tree
 
 function usage() {
   cat <<'EOF'
-pass: A modern CLI password manager
+  ---------------------------------------------------
+  -----------------------pass------------------------
+  ---------------------------------------------------
+  -----------A modern CLI password manager-----------
+  ---------------------------------------------------
 
 Usage: pass [options] <command> [arguments]
 
@@ -200,7 +206,7 @@ function pass_import() {
 }
 
 function rotate_keys() {
-  local TMP_MASTER_ROTATE TMP_PASS TMP_PASSPUBKEY_ROTATE OTP_STORE RECUVA_STORE
+  local TMP_MASTER_ROTATE TMP_PASSPUBKEY_ROTATE OTP_STORE RECUVA_STORE
   local rotate_pubkey
 
   handle_required_dir "$PASS_STORE" "$PASSWORD_STORE" "$KEY_STORE"
@@ -228,7 +234,7 @@ function rotate_keys() {
 
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     unset key
-    key=$(get_age_private_key pass)
+    key=$(get_age_pass_expect)
   fi
 
   age-keygen -o "$TMP_PASS_ROTATE"
@@ -264,74 +270,17 @@ function setup_expect() {
   expect <<EOF
 spawn age --passphrase -o "$KEY_STORE/pass.age" "$SETUP_PASS"
 expect "Enter passphrase (leave empty to autogenerate a secure one):"
-send "$password\r"
+send "$pin\r"
 expect "Confirm passphrase:"
-send "$password\r"
-expect eof
-EOF
-}
-
-function get_age_pass_expect() {
-  key=$(
-    expect <<EOF
-spawn age --decrypt "$TMP_PASS"
-expect {
-  "Enter passphrase:" { send "$pin\r" }
-  timeout { exit 1 }
-}
 send "$pin\r"
 expect eof
 EOF
-  )
-  [[ $? -ne 0 ]] && {
-    unset pin
-    handle_error 14 "Failed to decrypt private key"
-  }
-  unset pin
-  [[ ! "$key" =~ AGE-SECRET-KEY ]] && handle_error 13 "Failed to unlock the private key!"
-  key=$(echo "$key" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/%*$//; s/.*\(AGE-SECRET-KEY.*\)/\1/' | tr -d '[:space:]' | tr -d '\r')
-  echo -n "$key" | tr -d '[:space:]'
-  if [ "$KEEP_PASS" = "true" ]; then
-    srm "$TMP_PASS"
-  fi
-}
-
-function get_age_master_expect() {
-  expect <<EOF
-spawn age --decrypt -o "$TMP_PASS" "$MASTER_KEY"
-expect "Enter passphrase:"
-send "$passphrase\r"
-expect eof
-EOF
-  [[ $? -ne 0 ]] && {
-    srm "$TMP_PASS"
-    unset passphrase
-    handle_error 14 "Failed to decrypt master password"
-  }
-  unset passphrase
 }
 
 function entropy_config_check() {
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     if [ -z "$ENTROPY_ITERATION" ] || [ -z "$ENTROPY_SALT" ] || [ -z "$ENTROPY_PARALLELISM" ]; then
       text "$BLUE" "Note: You may configure your special SALT, ITERATION and PARALLELISM in your .passrc"
-      text "$BLUE" "Choose a predefined setup for Entropy Amplification:"
-      select choice_continue in "strong" "default" "fast"; do
-        case $choice_continue in
-        strong)
-          ENTROPY_ITERATION=3
-          ;;
-        fast)
-          ENTROPY_ITERATION=1
-          ;;
-        default)
-          ENTROPY_ITERATION=${ENTROPY_ITERATION:-2}
-          ;;
-        *)
-          ENTROPY_ITERATION=${ENTROPY_ITERATION:-2}
-          ;;
-        esac
-      done
     fi
     if [ -z "$ENTROPY_SALT" ]; then
       text "$BLUE" "Entropy Salt not set, falling back to default"
@@ -350,7 +299,7 @@ function entropy_config_check() {
 }
 
 function key_encryption() {
-  local SETUP_PASS SETUP_MASTER SETUP_PASS_TMP
+  local SETUP_MASTER SETUP_PASS_TMP
   SETUP_MASTER=${1:-"$KEY_STORE/master-setup.age"}
   SETUP_PASS=${2:-"$KEY_STORE/pass-setup.age"}
   SETUP_PASS_TMP=${3:-"$KEY_STORE/pass-setup-tmp.age"}
@@ -365,17 +314,17 @@ function key_encryption() {
 
     while true; do
       text "$GREEN" "Insert your PIN password:"
-      read -s first_password
+      read -s first_pin
       text "$GREEN" "Confirm your PIN password:"
-      read -s second_password
-      if [ "$first_password" == "$second_password" ]; then
-        password="$first_password"
+      read -s second_pin
+      if [ "$first_pin" == "$second_pin" ]; then
+        password="$first_pin"
         break
       else
         text "$RED" "Passwords does not match"
       fi
     done
-    password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+    pin=$(echo "$pin" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
 
     setup_expect || handle_error 12 "Failed encrypting private key"
   else
@@ -385,13 +334,13 @@ function key_encryption() {
   text "$BLUE" "Create your master password. It's recommended to be strong: Use numbers, characters and symbols."
   age --encrypt --passphrase -o "$MASTER_KEY" "$KEY_STORE/pass.age" || handle_error 12 "Failed encrypting master key"
 
-  cleanup
+  srm "$KEY_STORE/pass.age"
 }
 
 function setup() {
-  local SETUP_PASS SETUP_MASTER SETUP_PASS_TMP
+  local SETUP_MASTER SETUP_PASS_TMP
   SETUP_MASTER="$KEY_STORE/master-setup.age"
-  SETUP_PASS_TMP="$KEY_STORE/pass-setup.age"
+  SETUP_PASS_TMP="$KEY_STORE/pass-setup-tmp.age"
   SETUP_PASS="$KEY_STORE/pass-setup.age"
 
   if [ -f "$MASTER_KEY" ] || [ -f "$KEY_STORE/pass.age" ] || [ -f "$PASS_PUBKEY" ]; then
@@ -413,8 +362,8 @@ function setup() {
     [ -f "$file" ] && srm "$file"
   done
 
-  if [ -d "$PASSWORD_STORE" ]; then
-    srm -R "$PASSWORD_STORE"
+  if [ -d "$PASS_STORE" ]; then
+    srm -R "$PASS_STORE"
   fi
 
   cat <<EOF
@@ -441,6 +390,8 @@ EOF
 
   key_encryption
 
+  srm "$SETUP_PASS"
+
   echo
 
   text "$RED" "Important Note"
@@ -460,91 +411,6 @@ EOF
   text "$GREEN" "Setup Complete"
 }
 
-function get_age_input() {
-  local INPUT
-  INPUT=$1
-
-  if [ "$INPUT" == "master" ]; then
-    case "$DIALOG" in
-    zenity)
-      passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text)
-      ;;
-    custom)
-      IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PASSWORD"
-      passphrase=$("${cmd_array[@]}" || {
-        echo "Error executing custom password command"
-        exit 1
-      })
-      ;;
-    *)
-      read -s -p "Enter your master password: " passphrase
-      ;;
-    esac
-    [[ -z "$passphrase" ]] && handle_error 13 "Passphrase cannot be empty!"
-    get_age_private_key master
-  elif [ "$INPUT" == "pin" ]; then
-    if [ -z "$pin" ]; then
-      case "$DIALOG" in
-      zenity)
-        if ! command -v zenity &>/dev/null; then
-          echo "zenity could not be found. Please install it."
-          exit 1
-        fi
-        pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
-        ;;
-      custom)
-        IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PIN"
-        passphrase=$("${cmd_array[@]}" || {
-          echo "Error executing custom password command"
-          exit 1
-        })
-        pin=$(sh -c "$CUSTOM_CMD_PIN")
-        ;;
-      *)
-        read -s -p "Enter your PIN password: " pin
-        ;;
-      esac
-      [[ -z "$pin" ]] && handle_error 13 "PIN cannot be empty!"
-    fi
-  fi
-}
-
-function get_age_key() {
-  local KEY TMP_PASS
-  TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass-tmp.age}
-  KEY=$1
-
-  if [ "$KEY" == "public" ]; then
-    key=$(cat "$PASS_PUBKEY")
-    return 0
-  elif [ "$KEY" == "private" ]; then
-    if [ ! -f "$TMP_PASS" ]; then
-      touch "$TMP_PASS"
-      chmod 400 "$TMP_PASS"
-      get_age_input master
-    else
-      get_age_input master
-    fi
-    return 0
-  fi
-}
-
-function get_age_private_key() {
-  local TMP_PASS MODE
-  TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
-  MODE="$1"
-
-  if [ "$MODE" == "pass" ]; then
-    get_age_pass_expect
-    return 0
-  fi
-
-  if [ "$MODE" == "master" ]; then
-    get_age_master_expect
-    return 0
-  fi
-}
-
 function git_passwords() {
   handle_required_dir "$PASS_STORE"
   git -C "$PASS_STORE" "$@"
@@ -553,10 +419,12 @@ function git_passwords() {
 function open_master() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
-  PASSWORD="$STORE/$name.age"
   handle_required_dir "$STORE"
-  handle_required_files "$PASSWORD"
-  get_age_key private
+  if [ -f "$CACHED_PRIVATE_KEY" ]; then
+    text "$BLUE" "Private key is already cached!"
+  else
+    get_age_key private
+  fi
   exit 0
 }
 
@@ -567,20 +435,17 @@ function output_password() {
   handle_required_dir "$STORE"
   handle_required_files "$PASSWORD"
 
-  get_age_key private
+  get_age_key
 
-  key=$(get_age_private_key)
+  key=$(get_age_pass_expect)
   if [[ "$(basename "$0")" =~ pass$ ]]; then
     age --decrypt --identity <(echo "$key") "$PASSWORD"
-    global_error
   fi
 }
 
 function close_password() {
-  local TMP_PASS
-  TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
-  if [ -f "$TMP_PASS" ]; then
-    srm "$TMP_PASS" && text "$GREEN" "Cached private key securely wiped"
+  if [ -f "$CACHED_PRIVATE_KEY" ]; then
+    srm "$CACHED_PRIVATE_KEY" && text "$GREEN" "Cached private key securely wiped"
     text "$BLUE" "Your secrets are protected behind your master password"
     if [ "$NOTIFY" = "true" ]; then
       notify-send -u normal "Pass: Close" "Your secrets are protected behind your master password" --expire-time=3500
@@ -672,7 +537,7 @@ function clear_clipboard() {
 
 function clip_password() {
   local password
-  key=$(get_age_private_key pass)
+  key=$(get_age_pass_expect)
   password=$(age --decrypt --identity <(echo "$key") "$PASSWORD")
   val=$?
   if [ "$val" -ne 0 ]; then
@@ -741,7 +606,7 @@ function generate_password() {
     fi
   fi
 
-  get_age_key public
+  key=$(cat "$PASS_PUBKEY")
 
   cd "$PASSWORD_STORE" || exit 1
   mkdir -p "$(dirname "$name")"
@@ -763,6 +628,105 @@ function generate_password() {
   if [ "$CLIP_POST_ACTION" = "true" ]; then
     copy_password
   fi
+}
+
+function get_age_key() {
+  if [ ! -f "$CACHED_PRIVATE_KEY" ]; then
+    touch "$CACHED_PRIVATE_KEY"
+    chmod 600 "$CACHED_PRIVATE_KEY"
+    get_age_input master
+  fi
+}
+
+function get_age_input() {
+  local INPUT
+  INPUT=$1
+
+  if [ "$INPUT" == "master" ]; then
+    case "$DIALOG" in
+    zenity)
+      passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text 2>/dev/null)
+      ;;
+    custom)
+      IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PASSWORD"
+      passphrase=$("${cmd_array[@]}" || {
+        echo "Error executing custom password command"
+        exit 1
+      })
+      ;;
+    *)
+      read -s -p "Enter your master password: " passphrase
+      ;;
+    esac
+    [[ -z "$passphrase" ]] && handle_error 13 "Passphrase cannot be empty!"
+    get_age_master_expect
+  elif [ "$INPUT" == "pin" ]; then
+    if [ -z "$pin" ]; then
+      case "$DIALOG" in
+      zenity)
+        if ! command -v zenity &>/dev/null; then
+          echo "zenity could not be found. Please install it."
+          exit 1
+        fi
+        pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text 2>/dev/null)
+        ;;
+      custom)
+        IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PIN"
+        pin=$("${cmd_array[@]}" || {
+          echo "Error executing custom password command"
+          exit 1
+        })
+        pin=$(sh -c "$CUSTOM_CMD_PIN")
+        ;;
+      *)
+        read -s -p "Enter your PIN password: " pin
+        ;;
+      esac
+      [[ -z "$pin" ]] && handle_error 13 "PIN cannot be empty!"
+      pin=$(echo "$pin" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+    fi
+  fi
+}
+
+function get_age_pass_expect() {
+  get_age_input pin
+  key=$(
+    expect <<EOF
+spawn age --decrypt "$CACHED_PRIVATE_KEY"
+expect {
+  "Enter passphrase:" { send "$pin\r" }
+  timeout { exit 1 }
+}
+send "$pin\r"
+expect eof
+EOF
+  )
+  [[ $? -ne 0 ]] && {
+    unset pin
+    handle_error 14 "Failed to decrypt private key"
+  }
+  unset pin
+  [[ ! "$key" =~ AGE-SECRET-KEY ]] && handle_error 13 "Failed to unlock the private key!"
+  key=$(echo "$key" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/%*$//; s/.*\(AGE-SECRET-KEY.*\)/\1/' | tr -d '[:space:]' | tr -d '\r')
+  echo -n "$key" | tr -d '[:space:]'
+  if [ "$KEEP_PASS" = "true" ]; then
+    srm "$CACHED_PRIVATE_KEY"
+  fi
+}
+
+function get_age_master_expect() {
+  expect <<EOF
+spawn age --decrypt -o "$CACHED_PRIVATE_KEY" "$MASTER_KEY"
+expect "Enter passphrase:"
+send "$passphrase\r"
+expect eof
+EOF
+  [[ $? -ne 0 ]] && {
+    srm "$CACHED_PRIVATE_KEY"
+    unset passphrase
+    handle_error 14 "Failed to decrypt master password"
+  }
+  unset passphrase
 }
 
 function get_pass_args() {
