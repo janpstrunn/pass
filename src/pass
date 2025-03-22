@@ -324,7 +324,7 @@ function key_encryption() {
         text "$RED" "Passwords does not match"
       fi
     done
-    pin=$(echo "$pin" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+    pin=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
 
     setup_expect || handle_error 12 "Failed encrypting private key"
   else
@@ -636,6 +636,12 @@ function get_age_key() {
     chmod 600 "$CACHED_PRIVATE_KEY"
     get_age_input master
   fi
+  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+    get_age_input pin
+    pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+  else
+    get_age_input pin
+  fi
 }
 
 function get_age_input() {
@@ -683,31 +689,22 @@ function get_age_input() {
         ;;
       esac
       [[ -z "$pin" ]] && handle_error 13 "PIN cannot be empty!"
-      pin=$(echo "$pin" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
     fi
   fi
 }
 
 function get_age_pass_expect() {
-  get_age_input pin
   key=$(
-    expect <<EOF
+    expect <<EOF | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '[:space:]' | sed 's/%*$//'
 spawn age --decrypt "$CACHED_PRIVATE_KEY"
-expect {
-  "Enter passphrase:" { send "$pin\r" }
-  timeout { exit 1 }
-}
+expect "Enter passphrase:"
 send "$pin\r"
 expect eof
 EOF
   )
-  [[ $? -ne 0 ]] && {
-    unset pin
-    handle_error 14 "Failed to decrypt private key"
-  }
+  key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
   unset pin
   [[ ! "$key" =~ AGE-SECRET-KEY ]] && handle_error 13 "Failed to unlock the private key!"
-  key=$(echo "$key" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/%*$//; s/.*\(AGE-SECRET-KEY.*\)/\1/' | tr -d '[:space:]' | tr -d '\r')
   echo -n "$key" | tr -d '[:space:]'
   if [ "$KEEP_PASS" = "true" ]; then
     srm "$CACHED_PRIVATE_KEY"
