@@ -1,41 +1,52 @@
 #!/usr/bin/env bash
 
+LOCKFILE="/tmp/pass-xxx.lock"
+exec {LOCKFD}>"$LOCKFILE" || exit 1
+flock -n "$LOCKFD" || {
+  echo "Error: Another instance is running!" >&2
+  exit 1
+}
+
 PASSRC=${PASSRC:-"$HOME/.passrc"}
 PASS_STORE=${PASS_STORE:-"$HOME/.pass/"}
+
+source "$PASSRC"
+
+if [[ "$PASS_STORE" != "$HOME"* ]]; then
+  text "$RED" "Danger! PASS_STORE is not located within the home directory!"
+  text "$BLUE" "PASS_STORE Location: $PASS_STORE"
+  text "$BLUE" "Exitting!"
+  exit 1
+fi
 
 PASSWORD_STORE="$PASS_STORE/passwords/"
 KEY_STORE="$PASS_STORE/keys/"
 MASTER_KEY="$KEY_STORE/master.age"
-PASS_KEY="$KEY_STORE/pass.age"
 PASS_PUBKEY="$KEY_STORE/pass.pubkey"
-
-ENTROPY_SALT=$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")
-ENTROPY_ITERATION=$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")
-ENTROPY_AMPLIFICATION=$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")
-ENTROPY_PARALLELISM=$(sed -n 's/^ENTROPY_PARALLELISM=//p' "$PASSRC")
-
-NOTIFY=${NOTIFY:-$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
 
 RED="$(tput setaf 196)"
 GREEN="$(tput setaf 82)"
 BLUE="$(tput setaf 87)"
 
-if ! command -v age &>/dev/null; then
-  echo "age could not be found. Please install it."
-  exit 1
-elif ! command -v git &>/dev/null; then
-  echo "git could not be found. Please install it."
-  exit 1
-elif ! command -v srm &>/dev/null; then
-  echo "secure-delete could not be found. Please install it."
-  exit 1
-fi
+check_command() {
+  for cmd in "$@"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      echo "Error: $cmd could not be found. Please install it." >&2
+      exit 1
+    fi
+  done
+}
+
+[ "$ENTROPY_AMPLIFICATION" = "true" ] && check_command argon2
+[ "$DIALOG" = "zenity" ] && check_command zenity
+
+check_command age git srm pwgen expect tree
 
 function usage() {
-  cat <<EOF
+  cat <<'EOF'
 pass: A modern CLI password manager
 
-Usage: $0 [options] <command> [arguments]
+Usage: pass [options] <command> [arguments]
 
   -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
@@ -96,54 +107,76 @@ function text() {
   echo -e "${color}${text}${reset}"
 }
 
-if [[ "$PASS_STORE" != "$HOME"* ]]; then
-  text "$RED" "Danger! PASS_STORE is not located within the home directory!"
-  text "$BLUE" "PASS_STORE Location: $PASS_STORE"
-  text "$BLUE" "Exitting!"
+cleanup() {
+  local local_variables=("password" "password_dir" "password_name" "pin" "key")
+  for variable in "${local_variables[@]}"; do
+    [ -n "${!variable}" ] && unset "$variable"
+  done
+  local temp_files=("$TMP_MASTER_ROTATE" "$TMP_PASSPUBKEY_ROTATE" "$TMP_PASS_ROTATE" "$SETUP_MASTER" "$SETUP_PASS_TMP" "$SETUP_PASS")
+  for file in "${temp_files[@]}"; do
+    [ -f "$file" ] && srm "$file"
+  done
   exit 1
-fi
+}
 
-function global_error() {
-  error=$?
-  [[ "$error" -ne 0 ]] && {
-    text "$RED" "Error: An error occurred!" >&2
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
+trap cleanup SIGINT SIGTERM EXIT
+
+handle_error() {
+  local exit_code=$1
+  local message=$2
+
+  if [ "$exit_code" -ne 0 ]; then
+    text "$RED" "Error: $message" >&2
+    [ "$NOTIFY" = "true" ] && notify-send -u critical "Pass: Error" "$message" --expire-time=5000
+    exit "$exit_code"
+  fi
+}
+
+handle_required_files() {
+  for file in "$@"; do
+    if [ ! -f "$file" ]; then
+      echo "Error: File $file could not be found!" >&2
+      if [ "$NOTIFY" = "true" ]; then
+        notify-send -u critical "Pass: Error" "File $dir could not be found!" --expire-time=5000
+      fi
+      exit 2
     fi
-    exit 1
-  }
+  done
+}
+
+handle_required_dir() {
+  for dir in "$@"; do
+    if [ ! -d "$dir" ]; then
+      echo "Error: Directory $dir could not be found!" >&2
+      if [ "$NOTIFY" = "true" ]; then
+        notify-send -u critical "Pass: Error" "Directory $dir could not be found!" --expire-time=5000
+      fi
+      exit 2
+    fi
+  done
 }
 
 function pass_import() {
-  local FORCE
-  FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
-  if [ ! -f "$PASS_PUBKEY" ]; then
-    text "$RED" "Error: Missing public age key!"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "Missing public age key!" --expire-time=5000
-    fi
-    exit 1
-  fi
+  local PASSWORD_STORE_DIR
+  local password_name password_dir password
+  handle_required_files "$PASS_PUBKEY"
+  handle_required_dir "$PASS_STORE"
+
   if [ "$FORCE" = "true" ]; then
     PASSWORD_STORE_DIR="$HOME/.password-store/"
   else
     PASSWORD_STORE_DIR=${PASSWORD_STORE_DIR:-$HOME/.password-store/}
   fi
-  if [ ! -d "$PASS_STORE" ]; then
-    text "$RED" "Error: PASS_STORE not found!"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
-    fi
-    exit 1
-  fi
-  cd "$PASSWORD_STORE_DIR" || exit 1
+
+  cd "$PASSWORD_STORE_DIR" || exit 11
+
   find . -type f -name "*.gpg" | while IFS= read -r password_file; do
     password_name=$(sed 's|^.\(.*\).gpg$|\1|' <<<"$password_file")
     password_dir=$(sed 's|^./\(.*\)/[^/]*\.gpg$|\1/|' <<<"$password_file")
     password=$(gpg --decrypt "$password_name" | head -n 1)
 
     if [ "$(awk -F '/' '{print $1}' <<<"$password_dir")" != "." ]; then
-      mkdir -p "$PASSWORD_STORE/$password_dir"
+      mkdir -p "$PASSWORD_STORE/$password_dir" || handle_error 11 "Failed to make $password_dir directory"
     fi
 
     echo "$password" | age --encrypt --recipient="$(cat "$PASS_PUBKEY")" -o "$PASSWORD_STORE/$password_name.age"
@@ -156,6 +189,7 @@ function pass_import() {
 
     text "$GREEN" "Password $password_name encrypted successfully!"
   done
+
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Imported passwords from passwordstore"
 
   text "$RED" "Important note: Only the first line have been copied!"
@@ -166,23 +200,18 @@ function pass_import() {
 }
 
 function rotate_keys() {
-  local TMP_MAIN TMP_PASS TMP_PASSPUBKEY OTP_STORE RECUVA_STORE
-  local new_pubkey
+  local TMP_MASTER_ROTATE TMP_PASS TMP_PASSPUBKEY_ROTATE OTP_STORE RECUVA_STORE
+  local rotate_pubkey
+
+  handle_required_dir "$PASS_STORE" "$PASSWORD_STORE" "$KEY_STORE"
   OTP_STORE="$PASS_STORE/otp/"
   RECUVA_STORE="$PASS_STORE/recovery/"
 
-  TMP_MAIN="$KEY_STORE/main-temp.age"
-  TMP_PASS_ROTATE="$KEY_STORE/pass-temp.age"
-  TMP_PASSPUBKEY="$KEY_STORE/pass-temp.pubkey"
+  TMP_MASTER_ROTATE="$KEY_STORE/main-rotate.age"
+  TMP_PASS_ROTATE="$KEY_STORE/pass-rotate.age"
+  TMP_PASSPUBKEY_ROTATE="$KEY_STORE/pass-rotate.pubkey"
 
-  ENTROPY_SALT=${ENTROPY_SALT:-$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")}
-  ENTROPY_ITERATION=${ENTROPY_ITERATION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
-  ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
-
-  if [ "$FORCE" = "true" ]; then
-    # Backup files
-    cp -r "$PASS_STORE" "$HOME/.pass.bak" && text "$BLUE" "A backup files have been create at \$HOME/.pass.bak"
-  else
+  if [ "$FORCE" != "true" ]; then
     text "$RED" "Are you sure you want to rotate your age keys?"
     select choice_continue in "yes" "no"; do
       case $choice_continue in
@@ -190,30 +219,26 @@ function rotate_keys() {
       no) exit 0 ;;
       esac
     done
-    # Backup files
-    cp -r "$PASS_STORE" "$HOME/.pass.bak" && text "$BLUE" "A backup files have been create at \$HOME/.pass.bak"
   fi
-  if [ ! -d "$PASSWORD_STORE" ]; then
-    text "$RED" "Error: PASS_STORE not found!"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
-    fi
-    exit 1
-  fi
+
+  cp -r "$PASS_STORE" "$HOME/.pass.bak" || handle_error 11 "Failed to make a backup of your PASS_STORE"
+  text "$BLUE" "A backup files have been create at \$HOME/.pass.bak"
 
   get_age_key private
 
-  age-keygen -o "$TMP_PASS_ROTATE" # Key used for passwords
-  age-keygen -o "$TMP_MAIN"        # encryption layer for pass_key
-
-  awk -F 'key: ' '{print $2}' <"$TMP_PASS_ROTATE" | tr -d '\n' >"$TMP_PASSPUBKEY"
-
-  new_pubkey=$(awk -F 'key: ' '{print $2}' <"$TMP_PASS_ROTATE" | tr -d '\n')
-
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     unset key
-    key=$(get_age_key_amp_get pass)
+    key=$(get_age_private_key pass)
   fi
+
+  age-keygen -o "$TMP_PASS_ROTATE"
+  age-keygen -o "$TMP_MASTER_ROTATE"
+
+  age-keygen -y "$TMP_PASS_ROTATE" >"$TMP_PASSPUBKEY_ROTATE"
+
+  rotate_pubkey=$(cat "$TMP_PASS_ROTATE")
+
+  text "$BLUE" "Encrypting all your passwords using new keys"
 
   for dir in "$PASSWORD_STORE" "$OTP_STORE" "$RECUVA_STORE"; do
     if [ -d "$dir" ]; then
@@ -221,23 +246,107 @@ function rotate_keys() {
         DECRYPTED_PASSWORD="${file%.age}.txt"
         age --decrypt --identity <(echo "$key") "$file" >"$DECRYPTED_PASSWORD"
         srm "$file"
-        age --encrypt --recipient="$new_pubkey" "$DECRYPTED_PASSWORD" >"$file"
+        age --encrypt --recipient="$rotate_pubkey" "$DECRYPTED_PASSWORD" >"$file"
         srm "$DECRYPTED_PASSWORD"
-        text "$GREEN" "Encrypted $file"
+        text "$GREEN" "$file encrypted with age"
       done
     fi
   done
 
-  val=$?
-  if [ "$val" -ne 0 ]; then
-    for file in "$TMP_MAIN" "$TMP_PASSPUBKEY" "$TMP_PASS_ROTATE"; do
-      [ -f "$file" ] && srm "$file"
-    done
-  fi
+  text "$BLUE" "Encrypting your age keys"
 
-  key_encryption "$TMP_MAIN" "$TMP_PASS_ROTATE" "$TMP_PASSPUBKEY"
+  key_encryption "$TMP_MASTER_ROTATE" "$TMP_PASS_ROTATE" "$TMP_PASSPUBKEY_ROTATE"
 
   text "$GREEN" "Complete!"
+}
+
+function setup_expect() {
+  expect <<EOF
+spawn age --passphrase -o "$KEY_STORE/pass.age" "$SETUP_PASS"
+expect "Enter passphrase (leave empty to autogenerate a secure one):"
+send "$password\r"
+expect "Confirm passphrase:"
+send "$password\r"
+expect eof
+EOF
+}
+
+function get_age_pass_expect() {
+  key=$(
+    expect <<EOF
+spawn age --decrypt "$TMP_PASS"
+expect {
+  "Enter passphrase:" { send "$pin\r" }
+  timeout { exit 1 }
+}
+send "$pin\r"
+expect eof
+EOF
+  )
+  [[ $? -ne 0 ]] && {
+    unset pin
+    handle_error 14 "Failed to decrypt private key"
+  }
+  unset pin
+  [[ ! "$key" =~ AGE-SECRET-KEY ]] && handle_error 13 "Failed to unlock the private key!"
+  key=$(echo "$key" | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/%*$//; s/.*\(AGE-SECRET-KEY.*\)/\1/' | tr -d '[:space:]' | tr -d '\r')
+  echo -n "$key" | tr -d '[:space:]'
+  if [ "$KEEP_PASS" = "true" ]; then
+    srm "$TMP_PASS"
+  fi
+}
+
+function get_age_master_expect() {
+  expect <<EOF
+spawn age --decrypt -o "$TMP_PASS" "$MASTER_KEY"
+expect "Enter passphrase:"
+send "$passphrase\r"
+expect eof
+EOF
+  [[ $? -ne 0 ]] && {
+    srm "$TMP_PASS"
+    unset passphrase
+    handle_error 14 "Failed to decrypt master password"
+  }
+  unset passphrase
+}
+
+function entropy_config_check() {
+  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+    if [ -z "$ENTROPY_ITERATION" ] || [ -z "$ENTROPY_SALT" ] || [ -z "$ENTROPY_PARALLELISM" ]; then
+      text "$BLUE" "Note: You may configure your special SALT, ITERATION and PARALLELISM in your .passrc"
+      text "$BLUE" "Choose a predefined setup for Entropy Amplification:"
+      select choice_continue in "strong" "default" "fast"; do
+        case $choice_continue in
+        strong)
+          ENTROPY_ITERATION=3
+          ;;
+        fast)
+          ENTROPY_ITERATION=1
+          ;;
+        default)
+          ENTROPY_ITERATION=${ENTROPY_ITERATION:-2}
+          ;;
+        *)
+          ENTROPY_ITERATION=${ENTROPY_ITERATION:-2}
+          ;;
+        esac
+      done
+    fi
+    if [ -z "$ENTROPY_SALT" ]; then
+      text "$BLUE" "Entropy Salt not set, falling back to default"
+      text "$BLUE" "Salt: $(hostname):"
+    fi
+    if [ -z "$ENTROPY_ITERATION" ]; then
+      text "$BLUE" "Entropy Iteration not set, falling back to default"
+      text "$BLUE" "Iterations: 2"
+    fi
+    if [ -z "$ENTROPY_PARALLELISM" ]; then
+      text "$BLUE" "Entropy Parallelism not set, falling back to default"
+      text "$BLUE" "Parallelism: 2"
+    fi
+    [[ $(wc -m <<<"$ENTROPY_SALT") -le 10 ]] && handle_error 12 "ENTROPY_SALT must be longer than 10 characters."
+  fi
 }
 
 function key_encryption() {
@@ -249,24 +358,12 @@ function key_encryption() {
   text "$BLUE" "Create your PIN password. It's recommended to be easier to access, but not stupid."
   text "$BLUE" "You will need to insert this PIN everytime you work with pass"
 
+  entropy_config_check
+
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    if [ -z "$ENTROPY_ITERATION" ] || [ -z "$ENTROPY_SALT" ]; then
-      text "$BLUE" "Note: You may configure your special SALT and ITERATION in your .passrc"
-      text "$BLUE" "Falling back to default values"
-    fi
-    if [ -z "$ENTROPY_SALT" ]; then
-      text "$BLUE" "Entropy Salt not set, falling back to hostname"
-      ${ENTROPY_SALT:-$(hostname)}
-    fi
-    if [[ $(wc -m <<<"$ENTROPY_SALT") -le 10 ]]; then
-      text "$RED" "Error: ENTROPY_SALT must be longer than 10 characters." >&2
-      if [ "$NOTIFY" = "true" ]; then
-        notify-send -u critical "Pass: Error" "ENTROPY_SALT must be longer than 10 characters!" --expire-time=5000
-      fi
-      exit 1
-    fi
+    text "$BLUE" "Using Entropy Amplification"
+
     while true; do
-      text "$BLUE" "Using Entropy Amplification"
       text "$GREEN" "Insert your PIN password:"
       read -s first_password
       text "$GREEN" "Confirm your PIN password:"
@@ -280,70 +377,31 @@ function key_encryption() {
     done
     password=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
 
-    expect <<EOF
-spawn age --passphrase -o "$PASS_KEY" "$SETUP_PASS"
-expect "Enter passphrase (leave empty to autogenerate a secure one):"
-send "$password\r"
-expect "Confirm passphrase:"
-send "$password\r"
-expect eof
-EOF
-
+    setup_expect || handle_error 12 "Failed encrypting private key"
   else
-    age --encrypt --passphrase -o "$PASS_KEY" "$SETUP_PASS"
+    age --encrypt --passphrase -o "$KEY_STORE/pass.age" "$SETUP_PASS" || handle_error 12 "Failed encrypting private key"
   fi
-  setup_error
 
   text "$BLUE" "Create your master password. It's recommended to be strong: Use numbers, characters and symbols."
-  age --encrypt --passphrase -o "$MASTER_KEY" "$PASS_KEY"
-  setup_error
+  age --encrypt --passphrase -o "$MASTER_KEY" "$KEY_STORE/pass.age" || handle_error 12 "Failed encrypting master key"
 
-  for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY"; do
-    [ -f "$file" ] && srm "$file"
-  done
-}
-
-function setup_error {
-  error=$?
-  [[ "$error" -ne 0 ]] && {
-    echo "An error occurred!" >&2
-    for file in "$SETUP_PASS" "$SETUP_MASTER" "$PASS_KEY" "$PASS_PUBKEY"; do
-      [ -f "$file" ] && srm "$file"
-    done
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
-    fi
-    exit 1
-  }
+  cleanup
 }
 
 function setup() {
-  local SETUP_PASS SETUP_MASTER
+  local SETUP_PASS SETUP_MASTER SETUP_PASS_TMP
   SETUP_MASTER="$KEY_STORE/master-setup.age"
-  SETUP_PASS_TMP="$KEY_STORE/pass-setup-tmp.age"
+  SETUP_PASS_TMP="$KEY_STORE/pass-setup.age"
   SETUP_PASS="$KEY_STORE/pass-setup.age"
 
-  ENTROPY_SALT=${ENTROPY_SALT:-$(sed -n 's/^ENTROPY_SALT=//p' "$PASSRC")}
-  ENTROPY_ITERATION=${ENTROPY_ITERATION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
-  ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
-
-  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    if ! command -v argon2 &>/dev/null; then
-      echo "argon2 could not be found. Please install it."
-      exit 1
-    elif ! command -v expect &>/dev/null; then
-      echo "expect could not be found. Please install it."
-      exit 1
-    fi
-  fi
-
-  if [ -f "$MASTER_KEY" ] || [ -f "$PASS_KEY" ] || [ -f "$PASS_PUBKEY" ]; then
+  if [ -f "$MASTER_KEY" ] || [ -f "$KEY_STORE/pass.age" ] || [ -f "$PASS_PUBKEY" ]; then
     text "$RED" "You already have a previous setup of pass."
     text "$RED" "Do you want to create new keys? (y/N)"
     select choice_continue in "yes" "no"; do
       case $choice_continue in
       yes)
-        mv "$PASS_STORE" "$HOME/.pass.bak" && text "$BLUE" "A backup of your PASS_STORE have been created at $HOME/.pass.bak"
+        mv "$PASS_STORE" "$HOME/.pass.bak" || handle_error 12 "Failed making a backup of your PASS_STORE"
+        text "$BLUE" "A backup of your PASS_STORE have been created at $HOME/.pass.bak"
         break
         ;;
       no) exit 0 ;;
@@ -351,7 +409,7 @@ function setup() {
     done
   fi
 
-  for file in "$MASTER_KEY" "$PASS_PUBKEY" "$PASS_KEY"; do
+  for file in "$MASTER_KEY" "$PASS_PUBKEY" "$KEY_STORE/pass.age" "$SETUP_MASTER" "$PASS_PUBKEY"; do
     [ -f "$file" ] && srm "$file"
   done
 
@@ -370,16 +428,15 @@ EOF
   text "$GREEN" "1. Creating a dedicated directory for pass and its subdirectories"
   echo "mkdir -p \$PASS_STORE \$KEY_STORE \$PASSWORD_STORE"
 
-  mkdir -p "$PASS_STORE" "$KEY_STORE" "$PASSWORD_STORE"
-  setup_error
+  mkdir -p "$PASS_STORE" "$KEY_STORE" "$PASSWORD_STORE" || return 12
 
   echo
 
   text "$GREEN" "2. Creating your master and pass age keys"
 
-  age-keygen -o "$SETUP_PASS_TMP"                                             # pass.age
-  awk -F 'key: ' '{print $2}' <"$SETUP_PASS_TMP" | tr -d '\n' >"$PASS_PUBKEY" # pass.age pubkey
-  tail -n 1 <"$SETUP_PASS_TMP" >"$SETUP_PASS"                                 # pass.age private key
+  age-keygen -o "$SETUP_PASS_TMP"                 # pass.age
+  age-keygen -y "$SETUP_PASS_TMP" >"$PASS_PUBKEY" # pass.age pubkey
+  tail -n 1 <"$SETUP_PASS_TMP" >"$SETUP_PASS"     # pass.age private key
   srm "$SETUP_PASS_TMP"
 
   key_encryption
@@ -399,30 +456,32 @@ EOF
 
   echo
 
-  chmod 600 "$MASTER_KEY"
+  chmod 400 "$MASTER_KEY"
   text "$GREEN" "Setup Complete"
 }
 
 function get_age_input() {
   local INPUT
-  DIALOG=${DIALOG:-$(sed -n 's/^DIALOG=//p' "$PASSRC")}
   INPUT=$1
+
   if [ "$INPUT" == "master" ]; then
     case "$DIALOG" in
     zenity)
       passphrase=$(zenity --entry --title="Enter master password" --text="Please enter your master password:" --hide-text)
-      get_age_key_amp_get master
       ;;
     custom)
-      CUSTOM_CMD_PASSWORD=${CUSTOM_CMD_PASSWORD:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
-      passphrase=$(sh -c "$CUSTOM_CMD_PASSWORD")
-      get_age_key_amp_get master
+      IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PASSWORD"
+      passphrase=$("${cmd_array[@]}" || {
+        echo "Error executing custom password command"
+        exit 1
+      })
       ;;
     *)
-      read -s -p "Enter your master password:" passphrase
-      get_age_key_amp_get master
+      read -s -p "Enter your master password: " passphrase
       ;;
     esac
+    [[ -z "$passphrase" ]] && handle_error 13 "Passphrase cannot be empty!"
+    get_age_private_key master
   elif [ "$INPUT" == "pin" ]; then
     if [ -z "$pin" ]; then
       case "$DIALOG" in
@@ -434,85 +493,60 @@ function get_age_input() {
         pin=$(zenity --entry --title="Enter PIN" --text="Please enter your PIN:" --hide-text)
         ;;
       custom)
-        CUSTOM_CMD_PIN=${CUSTOM_CMD_PIN:-$(sed -n 's/^CUSTOM_CMD_PASSWORD=//p' "$PASSRC")}
+        IFS=' ' read -r -a cmd_array <<<"$CUSTOM_CMD_PIN"
+        passphrase=$("${cmd_array[@]}" || {
+          echo "Error executing custom password command"
+          exit 1
+        })
         pin=$(sh -c "$CUSTOM_CMD_PIN")
         ;;
       *)
         read -s -p "Enter your PIN password: " pin
         ;;
       esac
+      [[ -z "$pin" ]] && handle_error 13 "PIN cannot be empty!"
     fi
   fi
 }
 
 function get_age_key() {
   local KEY TMP_PASS
-  ENTROPY_AMPLIFICATION=${ENTROPY_AMPLIFICATION:-$(sed -n 's/^ENTROPY_AMPLIFICATION=//p' "$PASSRC")}
-  TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
-  KEY=$1 # expects 'private' or 'public'
+  TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass-tmp.age}
+  KEY=$1
+
   if [ "$KEY" == "public" ]; then
     key=$(cat "$PASS_PUBKEY")
     return 0
-  fi
-  if [ "$KEY" == "private" ]; then
+  elif [ "$KEY" == "private" ]; then
     if [ ! -f "$TMP_PASS" ]; then
       touch "$TMP_PASS"
-      chmod 600 "$TMP_PASS"
+      chmod 400 "$TMP_PASS"
+      get_age_input master
+    else
       get_age_input master
     fi
-    global_error
-    if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-      get_age_input pin
-      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
-    else
-      get_age_input pin
-    fi
-    global_error
     return 0
   fi
 }
 
-function get_age_key_amp_get() {
+function get_age_private_key() {
   local TMP_PASS MODE
   TMP_PASS=${TMP_PASS:-/run/user/$(id -u)/pass.age.tmp}
-  KEEP_PASS=${KEEP_PASS:-$(sed -n 's/^KEEP_PASS=//p' "$PASSRC")}
   MODE="$1"
 
   if [ "$MODE" == "pass" ]; then
-    key=$(
-      expect <<EOF | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '[:space:]' | sed 's/%*$//'
-spawn age --decrypt "$TMP_PASS"
-expect "Enter passphrase:"
-send "$pin\r"
-expect eof
-EOF
-    )
-    val=$?
-    if [ "$val" -ne 0 ]; then
-      text "$RED" "Error: Failed to unlock the private key!"
-      if [ "$NOTIFY" = "true" ]; then
-        notify-send -u critical "Pass: Error" "Failed to unlock the private key!" --expire-time=5000
-      fi
-      exit 1
-    fi
-    key=$(echo "$key" | sed 's/.*\(AGE-SECRET-KEY.*\)/\1/')
-    echo -n "$key" | tr -d '[:space:]'
-    if [ "$KEEP_PASS" = "true" ]; then
-      srm "$TMP_PASS"
-    fi
+    get_age_pass_expect
+    return 0
   fi
 
   if [ "$MODE" == "master" ]; then
-    expect <<EOF
-spawn age --decrypt -o "$TMP_PASS" "$MASTER_KEY"
-expect "Enter passphrase:"
-send "$passphrase\r"
-expect eof
-EOF
+    get_age_master_expect
+    return 0
   fi
 }
 
 function git_passwords() {
+  handle_required_dir "$PASS_STORE"
   git -C "$PASS_STORE" "$@"
 }
 
@@ -520,15 +554,22 @@ function open_master() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
+  handle_required_dir "$STORE"
+  handle_required_files "$PASSWORD"
   get_age_key private
+  exit 0
 }
 
 function output_password() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
+  handle_required_dir "$STORE"
+  handle_required_files "$PASSWORD"
+
   get_age_key private
-  key=$(get_age_key_amp_get pass)
+
+  key=$(get_age_private_key)
   if [[ "$(basename "$0")" =~ pass$ ]]; then
     age --decrypt --identity <(echo "$key") "$PASSWORD"
     global_error
@@ -555,67 +596,52 @@ function close_password() {
 function fzf_passwords() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
-  if ! command -v fzf &>/dev/null; then
-    echo "fzf could not be found. Please install it."
+  handle_required_dir "$STORE"
+
+  check_command fzf
+
+  cd "$STORE" || exit 1
+  name=$(fzf --prompt "Select a password: ")
+  name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
+  if [ -z "$name" ]; then
+    text "$RED" "No file selected"
     exit 1
-  fi
-  if [ -d "$STORE" ]; then
-    cd "$STORE" || exit 1
-    name=$(fzf --prompt "Select a password: ")
-    name=$(awk -F. '{print $1}' <<<"$name" | sed 's|^.\(.*\).gpg$|\1|')
-    if [ -z "$name" ]; then
-      text "$RED" "No file selected"
-      exit 1
-    fi
-  else
-    text "$RED" "Error: PASS_STORE not found!"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "PASS_STORE not found!" --expire-time=5000
-    fi
-    text "$BLUE" "Run setup first!"
   fi
 }
 
 function find_passwords() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
-  if [ -d "$STORE" ]; then
-    cd "$STORE" || exit 1
-    if command -v fd &>/dev/null; then
-      fd -t f -i "$name" . | tree --fromfile
-    else
-      find . -type f -iname "*$name*" | tree --fromfile
-    fi
+  handle_required_dir "$STORE"
+
+  cd "$STORE" || exit 1
+
+  if command -v fd &>/dev/null; then
+    fd -t f -i "$name" . | tree --fromfile
   else
-    text "$RED" "No password store found!"
-    text "$RED" "Run setup first!"
+    find . -type f -iname "*$name*" | tree --fromfile
   fi
 }
 
 function list_passwords() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
-  if [ -d "$STORE" ]; then
-    if command -v eza &>/dev/null; then
-      eza -T "$STORE"
-    else
-      tree "$STORE"
-    fi
+  handle_required_dir "$STORE"
+
+  if command -v eza &>/dev/null; then
+    eza -T "$STORE"
   else
-    text "$RED" "No password store found!"
-    text "$RED" "Run setup first!"
+    tree "$STORE"
   fi
 }
 
 function remove_password() {
-  local STORE FORCE PASS_OPERATION
+  local STORE PASS_OPERATION
   STORE=${1:-"$PASSWORD_STORE"}
   PASS_OPERATION="$2"
-  FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
-  if [ "$FORCE" = "true" ]; then
-    srm "$STORE"/"$name".age
-    global_error
-  else
+  handle_required_dir "$STORE"
+
+  if [ "$FORCE" != "true" ]; then
     text "$RED" "Are you sure you want to remove $name? (y/N)"
     select choice_continue in "yes" "no"; do
       case $choice_continue in
@@ -623,14 +649,17 @@ function remove_password() {
       no) exit 0 ;;
       esac
     done
-    srm "$STORE"/"$name".age
-    global_error
   fi
+
+  srm "$STORE"/"$name".age || handle_error 15 "Failed to delete $name"
+
   text "$RED" "Removed $name from store"
-  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Removed $name from store"
+
   if [ "$NOTIFY" = "true" ]; then
     notify-send -u normal "Pass: Delete" "Deleted $PASS_OPERATION $name" --expire-time=3500
   fi
+
+  git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Removed $name from store"
 }
 
 function clear_clipboard() {
@@ -639,41 +668,40 @@ function clear_clipboard() {
   elif [ "$clipmethod" = "wayland" ]; then
     echo "" | wl-copy
   fi
-  if [ -n "$POST_CLIPBOARD_CLEAR" ]; then
-    sh -c "$POST_CLIPBOARD_CLEAR"
-    global_error
-  fi
 }
 
 function clip_password() {
   local password
-  key=$(get_age_key_amp_get pass)
+  key=$(get_age_private_key pass)
   password=$(age --decrypt --identity <(echo "$key") "$PASSWORD")
   val=$?
   if [ "$val" -ne 0 ]; then
-    text "$RED" "Error: Failed to copy password!"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "Failed to copy password!" --expire-time=5000
-    fi
-    exit 1
+    handle_error 17 "Failed to copy password!"
   fi
+
   echo "$password" | $clip_command
   echo "Clearing the password from clipboard in $CLIPBOARD_CLEAR_TIME seconds..."
+
   if [ "$NOTIFY" = "true" ]; then
     notify-send -u normal "Pass: Copy" "Clearing the password in $CLIPBOARD_CLEAR_TIME seconds..." --expire-time=3500
   fi
   sleep "$CLIPBOARD_CLEAR_TIME"s
-  clear_clipboard
+  clear_clipboard || handle_error 16 "Failed to clear clipboard!"
+  if [ -n "$POST_CLIPBOARD_CLEAR" ]; then
+    sh -c "$POST_CLIPBOARD_CLEAR" || handle_error 16 "Failed to run post clipboard clear!"
+  fi
 }
 
 function copy_password() {
   local STORE PASSWORD
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
-  clipmethod="$XDG_SESSION_TYPE"
-  NOTIFY=${NOTIFY:$(sed -n 's/^NOTIFY=//p' "$PASSRC")}
-  CLIPBOARD_CLEAR_TIME=$(sed -n 's/^CLIPBOARD_CLEAR_TIME=//p' "$PASSRC")
   CLIPBOARD_CLEAR_TIME="${CLIPBOARD_CLEAR_TIME:-5}"
+
+  handle_required_dir "$STORE"
+  handle_required_files "$PASSWORD"
+
+  clipmethod="$XDG_SESSION_TYPE"
 
   get_age_key private
 
@@ -690,37 +718,14 @@ function copy_password() {
 
 function generate_password() {
   local FORCE PASSWORD PWGEN_OPT STORE
-  FORCE=${FORCE:-$(sed -n 's/^FORCE=//p' "$PASSRC")}
   STORE=${1:-"$PASSWORD_STORE"}
   PASSWORD="$STORE/$name.age"
-  CLIP_POST_ACTION=${CLIP_POST_ACTION:-$(sed -n 's/^ENTROPY_ITERATION=//p' "$PASSRC")}
+
+  handle_required_dir "$STORE"
 
   if [ -z "$name" ]; then
-    text "$RED" "Error: No name provided for your password"
-    if [ "$NOTIFY" = "true" ]; then
-      notify-send -u critical "Pass: Error" "No name provided for your password!" --expire-time=5000
-    fi
-    exit 1
+    handle_error 17 "No name provided for your password!"
   fi
-
-  if ! command -v pwgen &>/dev/null; then
-    echo "pwgen could not be found. Please install it."
-    exit 1
-  fi
-
-  function generate_error() {
-    error=$?
-    [[ "$error" -ne 0 ]] && {
-      echo "An error occurred!" >&2
-      if [ -f "$PASSWORD" ]; then
-        srm "$PASSWORD"
-      fi
-      if [ "$NOTIFY" = "true" ]; then
-        notify-send -u critical "Pass: Error" "An error occurred!" --expire-time=5000
-      fi
-      exit 1
-    }
-  }
 
   if [ -z "$PWGEN_OPT" ]; then
     PWGEN_OPT="-Bsncy1n"
@@ -736,13 +741,19 @@ function generate_password() {
     fi
   fi
 
-  get_age_key public # get pubkey
+  get_age_key public
 
   cd "$PASSWORD_STORE" || exit 1
   mkdir -p "$(dirname "$name")"
 
-  pwgen "$length" "$PWGEN_OPT" | age --encrypt --recipient="$key" --output="$PASSWORD" # create passwords from pass.age pubkey
-  generate_error
+  pwgen "$length" "$PWGEN_OPT" | age --encrypt --recipient="$key" --output="$PASSWORD"
+  val=$?
+  [[ "$val" -ne 0 ]] && {
+    if [ -f "$PASSWORD" ]; then
+      srm "$PASSWORD"
+    fi
+    handle_error 18 "Failed to generate password!"
+  }
 
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Add generated password $name"
   chmod 600 "$PASSWORD"
@@ -767,7 +778,7 @@ function get_pass_args() {
       ENTROPY_ITERATION="$OPTARG"
       ;;
     e)
-      POST_CLIPBOARD_CLEAR=$(sed -n 's/^POST_CLIPBOARD_CLEAR=//p' "$PASSRC")
+      POST_CLIPBOARD_CLEAR=${1:-}
       ;;
     l)
       ENTROPY_PARALLELISM="$OPTARG"
@@ -798,9 +809,8 @@ function get_pass_args() {
       KEEP_PASS=true
       ;;
     ?)
-      echo "Error: Invalid option '-$OPTARG'" >&2
-      usage
-      exit 0
+      text "$RED" "Error: Invalid option '-$OPTARG'" >&2
+      exit 1
       ;;
     esac
   done
@@ -895,8 +905,7 @@ function get_pass_args() {
     exit 0
     ;;
   *)
-    text "$RED" "Error: Invalid command $1" >&2
-    usage
+    list_passwords
     exit 0
     ;;
   esac
