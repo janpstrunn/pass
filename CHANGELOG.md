@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.4.0] 2025-03-22
+
+### Added
+
+- Runtime lock, to prevent multiple processes reading the same files
+
+### Changed
+
+- Error handling has been remade from ground up
+- Improved many variable checking to reduce codebase
+- Improved how temporary files are cleaned up
+
+### Fixed
+
+- A inconvenient issue when inserting the master password incorrectly was caching an empty private key
+
 ## [2.3.1] 2025-03-20
 
 ### Added
