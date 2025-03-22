@@ -228,7 +228,7 @@ function rotate_keys() {
   cp -r "$PASS_STORE" "$HOME/.pass.bak" || handle_error 11 "Failed to make a backup of your PASS_STORE"
   text "$BLUE" "A backup files have been create at \$HOME/.pass.bak"
 
-  get_age_key private
+  get_age_key
 
   if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
     unset key
@@ -416,12 +416,12 @@ function open_master() {
   local STORE
   STORE=${1:-"$PASSWORD_STORE"}
   handle_required_dir "$STORE"
+
   if [ -f "$CACHED_PRIVATE_KEY" ]; then
     text "$BLUE" "Private key is already cached!"
   else
-    get_age_key private
+    get_age_key
   fi
-  exit 0
 }
 
 function output_password() {
@@ -564,7 +564,7 @@ function copy_password() {
 
   clipmethod="$XDG_SESSION_TYPE"
 
-  get_age_key private
+  get_age_key
 
   if [ "$clipmethod" = "x11" ]; then
     clip_command="xclip -sel clip"
@@ -632,12 +632,6 @@ function get_age_key() {
     chmod 600 "$CACHED_PRIVATE_KEY"
     get_age_input master
   fi
-  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    get_age_input pin
-    pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
-  else
-    get_age_input pin
-  fi
 }
 
 function get_age_input() {
@@ -685,6 +679,9 @@ function get_age_input() {
         ;;
       esac
       [[ -z "$pin" ]] && handle_error 13 "PIN cannot be empty!"
+    fi
+    if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-1}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
     fi
   fi
 }
