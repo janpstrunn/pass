@@ -175,8 +175,6 @@ mygooglepass=$(pass -p myverystrongpin output google)
 
 - **Hoykeys**
   - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
-- **Password Prompt**
-  - An inconvenient issue still to be addressed: Inserting the wrong password will mostly require `pass close` to be executed, and then try again.
 - **Password Store**
   - Having both `pass` from this repository and the `passwordstore` installed may cause conflicts, because both receive the same name.
   - Solution 1: Keep `pass` out of `$PATH`
