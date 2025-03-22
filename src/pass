@@ -103,14 +103,7 @@ EOF
 }
 
 function version() {
-  echo "v.2.3.1"
-}
-
-function text() {
-  color=$1
-  text=$2
-  reset=$(tput sgr0)
-  echo -e "${color}${text}${reset}"
+  echo "v.2.4.0"
 }
 
 cleanup() {
@@ -125,7 +118,12 @@ cleanup() {
   exit 1
 }
 
-trap cleanup SIGINT SIGTERM EXIT
+function text() {
+  color=$1
+  text=$2
+  reset=$(tput sgr0)
+  echo -e "${color}${text}${reset}"
+}
 
 handle_error() {
   local exit_code=$1
@@ -282,18 +280,16 @@ function entropy_config_check() {
     if [ -z "$ENTROPY_ITERATION" ] || [ -z "$ENTROPY_SALT" ] || [ -z "$ENTROPY_PARALLELISM" ]; then
       text "$BLUE" "Note: You may configure your special SALT, ITERATION and PARALLELISM in your .passrc"
     fi
-    if [ -z "$ENTROPY_SALT" ]; then
-      text "$BLUE" "Entropy Salt not set, falling back to default"
-      text "$BLUE" "Salt: $(hostname):"
-    fi
-    if [ -z "$ENTROPY_ITERATION" ]; then
-      text "$BLUE" "Entropy Iteration not set, falling back to default"
-      text "$BLUE" "Iterations: 2"
-    fi
-    if [ -z "$ENTROPY_PARALLELISM" ]; then
-      text "$BLUE" "Entropy Parallelism not set, falling back to default"
-      text "$BLUE" "Parallelism: 2"
-    fi
+    for var in "$ENTROPY_SALT" "$ENTROPY_ITERATION" "$ENTROPY_PARALLELISM"; do
+      [ -z "$var" ] && {
+        text "$BLUE" "$var not set, falling back to default"
+        if [ "$var" == "$ENTROPY_SALT" ]; then
+          text "$BLUE" "Default: ${var:-$(hostname)}"
+        else
+          text "$BLUE" "Default: ${var:-1}"
+        fi
+      }
+    done
     [[ $(wc -m <<<"$ENTROPY_SALT") -le 10 ]] && handle_error 12 "ENTROPY_SALT must be longer than 10 characters."
   fi
 }
@@ -324,7 +320,7 @@ function key_encryption() {
         text "$RED" "Passwords does not match"
       fi
     done
-    pin=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-2}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+    pin=$(echo "$password" | argon2 "$ENTROPY_SALT" -id -t "${ENTROPY_ITERATION:-1}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
 
     setup_expect || handle_error 12 "Failed encrypting private key"
   else
@@ -871,6 +867,8 @@ function get_pass_args() {
     ;;
   esac
 }
+
+trap cleanup SIGINT SIGTERM EXIT
 
 if [[ "$(basename "$0")" =~ pass$ ]]; then
   get_pass_args "$@"
