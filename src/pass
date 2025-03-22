@@ -717,6 +717,10 @@ EOF
     handle_error 14 "Failed to decrypt master password"
   }
   unset passphrase
+  if [ "$(du -s "$CACHED_PRIVATE_KEY" | awk '{print $1}')" -eq 0 ]; then
+    srm "$CACHED_PRIVATE_KEY"
+    handle_error 19 "Failed to cache the private key!"
+  fi
 }
 
 function get_pass_args() {
