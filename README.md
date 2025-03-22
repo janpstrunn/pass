@@ -70,9 +70,13 @@ curl -sSL https://github.com/janpstrunn/pass/raw/main/install.sh | bash
 ## Usage
 
 ```
-pass: A modern CLI password manager
+  ---------------------------------------------------
+  -----------------------pass------------------------
+  ---------------------------------------------------
+  -----------A modern CLI password manager-----------
+  ---------------------------------------------------
 
-Usage: $0 [options] <command> [arguments]
+Usage: pass [options] <command> [arguments]
 
   -a [-s] <salt> [-i] <iteration>
                               Use Entropy Amplification
@@ -95,7 +99,7 @@ Commands:
   close                    Remove cached private key
   cp, copy, clip [-a] <pass-name>
                            Copy password to clipboard
-  custom <pass-cmd> <pin-cmd>
+  custom, custom-cmd <pass-cmd> <pin-cmd>
                            Specify a custom dialog to get master password and PIN
   find <pass-name>         Search passwords and display as a tree
   git <git-args>           Run any Git command in PASS_STORE
