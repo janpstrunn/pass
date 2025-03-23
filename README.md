@@ -1,32 +1,28 @@
 <img src="https://git.disroot.org/janpstrunn/images/raw/branch/main/pass.png" align="right" height="100"/>
 <br>
 
-# pass: A modern CLI password manager
+# pass: A Modern CLI Password Manager
 
-`pass` is a simple password manager written in shell that tries to replace the [passwordstore](https://www.passwordstore.org/) keeping its core philosophies.
-
-This project has some important differences compared to [passwordstore](https://www.passwordstore.org/). `pass` does not uses `gpg` like [passwordstore](https://www.passwordstore.org/), instead it uses `age` for a more modern and simple way to generate password stores.
-
-It's a CLI tool that tries to make the process of managing passwords a breeze while keeping yourself secure with good security standards.
+`pass` is an elegant and efficient password manager crafted in shell, designed to replace the [passwordstore](https://www.passwordstore.org/) while maintaining its core principles. Unlike `passwordstore`, `pass` leverages `age` for a more contemporary and streamlined approach to password management, ensuring robust security standards.
 
 To understand the encryption logic behind the `age` backend, see [Encryption Logic](https://github.com/janpstrunn/pass/wiki/Encryption-Logic).
 
 ## Features
 
-- List all files in a tree format using `tree` or `eza`
-- Find files using `find` or `fd`
-- Interactive password selection using `fzf`
-- Import passwords from [passwordstore](https://www.passwordstore.org/)
-- Output passwords to `stdout`
-- Run any `git` command
-- Generate strong passwords using `pwgen`
-- Copy password to clipboard and clear clipboard on specified time
-- Run post commands after clipboard clear
-- Use `zenity` to insert passwords
-- Specify a dialog tool to get master password and PIN
-- Rotate `age` keys and re-encrypt all passwords
-- Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic#entropy-amplification))
-- Highly customizable and scriptable
+- **Tree View**: List all files in a tree format using `tree` or `eza`.
+- **File Search**: Find files effortlessly using `find` or `fd`.
+- **Interactive Selection**: Use `fzf` for interactive password selection.
+- **Seamless Import**: Import passwords from [passwordstore](https://www.passwordstore.org/).
+- **Output Management**: Output passwords directly to `stdout`.
+- **Git Integration**: Run any `git` command within your password store.
+- **Strong Passwords**: Generate strong passwords using `pwgen`.
+- **Clipboard Management**: Copy passwords to the clipboard and clear them after a specified time.
+- **Post-Clipboard Commands**: Execute commands after clipboard clearance.
+- **Graphical Input**: Use `zenity` for inserting passwords.
+- **Dialog Customization**: Specify a dialog tool to get the master password and PIN.
+- **Key Rotation**: Rotate `age` keys and re-encrypt all passwords.
+- **Enhanced Security**: Empower PIN passwords using `argon2` (see [Entropy Amplification](https://github.com/janpstrunn/pass/wiki/Encryption-Logic#entropy-amplification))
+- **Highly Customizable**: Tailor the tool to your specific needs and workflows.
 
 ## Requirements
 
@@ -65,7 +61,9 @@ curl -sSL https://github.com/janpstrunn/pass/raw/main/install.sh | bash
   - Configuration file.
   - Default to `"$HOME/.passrc`
 
-**Configuration File. Refer to [.passrc](https://github.com/janpstrunn/pass/blob/main/.passrc)**
+**Configuration File:**
+
+Refer to `.passrc` for detailed configuration options.
 
 ## Usage
 
@@ -130,29 +128,28 @@ Examples:
 
 ## Importing from passwordstore
 
-For those who what to import passwords from passwordstore, you can simply run the following command:
+For those transitioning from `passwordstore`, simply run:
 
 ```bash
 ./pass import
 ```
 
-If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, you can use the `-f` flag to set it to default, where the default is: `$HOME/.password-store/`
+If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, use the `-f` flag to set it to the default directory: `$HOME/.password-store/`.
 
 ## Scripting
 
-`pass` aims to be as much customizable as possible and scriptable to allow users to best adjust it to their workflows. Here are some examples how you can use `pass` in your scripts:
+`pass` is designed to be highly customizable and scriptable, allowing users to integrate it seamlessly into their workflows. Here are some examples:
 
 ```bash
-# This will take the password from pass and use it to unlock a gocryptfs vault
+# Unlock a gocryptfs vault using a password from pass
 pass output dev/usb1 | gocryptfs /path/to/gocryptfs-vault /path/to/mount
-# If you set a DIALOG in .passrc and you don't want to use it in a specific script. Use:
+# Bypass the DIALOG in .passrc for a specific script
 pass -d none output mypassword
-# Guess you have JUST overwritten a password called google, and you want to revert it
+# Revert an overwritten password called google
 pass git revert --no-edit $(pass git log --grep="google" --format="%H" -n 1)
-# Perhaps you want to initialize your system and immediately put in your master password
-# You can set this command to run when your system is loaded
+# Initialize your system and input your master password
 pass -d zenity open
-# Or if you don't want to be requested a PIN at all, you can even do something like this
+# Avoid PIN requests entirely
 mygooglepass=$(pass -p myverystrongpin output google)
 ```
 
@@ -177,17 +174,15 @@ mygooglepass=$(pass -p myverystrongpin output google)
 
 ## Known Issues
 
-- **Hoykeys**
-  - When trying to attach `pass` to a hotkey, the keybinding manager (e.g. `sxhkd`) may not know `pass` exists unless you put `pass` in a upper `$PATH` directory like `/usr/local/bin/`
-- **Password Store**
-  - Having both `pass` from this repository and the `passwordstore` installed may cause conflicts, because both receive the same name.
-  - Solution 1: Keep `pass` out of `$PATH`
-  - Solution 2: Uninstall `passwordstore`
+- **Hotkeys:** Keybinding managers (e.g., `sxhkd`) may not recognize pass unless it is placed in a higher `$PATH` directory like `/usr/local/bin/`.
+- **Password Store Conflicts:** Having both `pass` and `passwordstore` installed may cause conflicts due to identical names.
+  - **Solution 1:** Keep `pass` out of `$PATH`.
+  - **Solution 2:** Uninstall `passwordstore`.
 
 ## Notes
 
-This script has been only tested in a Linux Machine.
+This script has been tested exclusively on a Linux machine.
 
 ## License
 
-This repository is licensed under the MIT License, a very permissive license that allows you to use, modify, copy, distribute and more.
+This repository is licensed under the MIT License, allowing for extensive use, modification, copying, and distribution.
