@@ -142,15 +142,15 @@ If `$PASSWORD_STORE_DIR` is not defined in your `.env` file, use the `-f` flag t
 
 ```bash
 # Unlock a gocryptfs vault using a password from pass
-pass output dev/usb1 | gocryptfs /path/to/gocryptfs-vault /path/to/mount
+pass output gocryptfs/myvault | gocryptfs /mnt/gocryptfs-vault /home/user/vault/gocryptfs-vault
 # Bypass the DIALOG in .passrc for a specific script
-pass -d none output mypassword
+pass -d none output gocryptfs/myvault
 # Revert an overwritten password called google
 pass git revert --no-edit $(pass git log --grep="google" --format="%H" -n 1)
 # Initialize your system and input your master password
 pass -d zenity open
 # Avoid PIN requests entirely
-mygooglepass=$(pass -p myverystrongpin output google)
+mygooglepass=$(pass -p StrongestPinEver stdout email/google)
 ```
 
 ## Plans
@@ -174,7 +174,7 @@ mygooglepass=$(pass -p myverystrongpin output google)
 
 ## Known Issues
 
-- **Hotkeys:** Keybinding managers (e.g., `sxhkd`) may not recognize pass unless it is placed in a higher `$PATH` directory like `/usr/local/bin/`.
+- **Hotkeys:** Keybinding managers (e.g., `sxhkd`) may not recognize `pass` unless it is placed in a higher `$PATH` directory like `/usr/local/bin/`.
 - **Password Store Conflicts:** Having both `pass` and `passwordstore` installed may cause conflicts due to identical names.
   - **Solution 1:** Keep `pass` out of `$PATH`.
   - **Solution 2:** Uninstall `passwordstore`.
