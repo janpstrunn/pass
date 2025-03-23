@@ -111,7 +111,7 @@ cleanup() {
   for variable in "${local_variables[@]}"; do
     [ -n "${!variable}" ] && unset "$variable"
   done
-  local temp_files=("$TMP_MASTER_ROTATE" "$TMP_PASSPUBKEY_ROTATE" "$TMP_PASS_ROTATE" "$SETUP_MASTER" "$SETUP_PASS_TMP" "$SETUP_PASS")
+  local temp_files=("$TMP_MASTER_ROTATE" "$TMP_PASSPUBKEY_ROTATE" "$TMP_PASS_ROTATE" "$SETUP_MASTER" "$SETUP_PASS_TMP" "$SETUP_PASS" "$LOCKFILE")
   for file in "${temp_files[@]}"; do
     [ -f "$file" ] && srm "$file"
   done
@@ -197,7 +197,7 @@ function pass_import() {
   git -C "$PASS_STORE" add . && git -C "$PASS_STORE" commit . -m "Imported passwords from passwordstore"
 
   text "$RED" "Important note: Only the first line have been copied!"
-  text "$RED" "If there were multiline passwords, they are not copied."
+  text "$RED" "If there were multiline passwords, they were not copied."
   text "$RED" "For OTP keys, use pass-otp import"
 
   find "$PASS_STORE" -type f -exec chmod 600 {} \;
@@ -230,17 +230,14 @@ function rotate_keys() {
 
   get_age_key
 
-  if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
-    unset key
-    key=$(get_age_pass_expect)
-  fi
+  key=$(get_age_pass_expect)
 
   age-keygen -o "$TMP_PASS_ROTATE"
   age-keygen -o "$TMP_MASTER_ROTATE"
 
   age-keygen -y "$TMP_PASS_ROTATE" >"$TMP_PASSPUBKEY_ROTATE"
 
-  rotate_pubkey=$(cat "$TMP_PASS_ROTATE")
+  rotate_pubkey=$(age-keygen -y "$TMP_PASS_ROTATE")
 
   text "$BLUE" "Encrypting all your passwords using new keys"
 
@@ -252,7 +249,7 @@ function rotate_keys() {
         srm "$file"
         age --encrypt --recipient="$rotate_pubkey" "$DECRYPTED_PASSWORD" >"$file"
         srm "$DECRYPTED_PASSWORD"
-        text "$GREEN" "$file encrypted with age"
+        text "$GREEN" "$file encrypted with new age"
       done
     fi
   done
@@ -262,6 +259,8 @@ function rotate_keys() {
   key_encryption "$TMP_MASTER_ROTATE" "$TMP_PASS_ROTATE" "$TMP_PASSPUBKEY_ROTATE"
 
   text "$GREEN" "Complete!"
+
+  srm "$CACHED_PRIVATE_KEY"
 }
 
 function setup_expect() {
@@ -282,7 +281,8 @@ function entropy_config_check() {
     fi
     for var in "$ENTROPY_SALT" "$ENTROPY_ITERATION" "$ENTROPY_PARALLELISM"; do
       [ -z "$var" ] && {
-        text "$BLUE" "$var not set, falling back to default"
+        text=$var
+        text "$BLUE" "$text not set, falling back to default"
         if [ "$var" == "$ENTROPY_SALT" ]; then
           text "$BLUE" "Default: ${var:-$(hostname)}"
         else
@@ -689,6 +689,10 @@ function get_age_input() {
 function get_age_pass_expect() {
   if [ -z "$pin" ]; then
     get_age_input pin
+  else
+    if [ "$ENTROPY_AMPLIFICATION" = "true" ]; then
+      pin=$(echo "$pin" | argon2 "${ENTROPY_SALT:-$(hostname)}" -id -t "${ENTROPY_ITERATION:-1}" -m 20 -p "${ENTROPY_PARALLELISM:-2}" | awk '/^Hash:/ {print $2}')
+    fi
   fi
   key=$(
     expect <<EOF | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '[:space:]' | sed 's/%*$//'
